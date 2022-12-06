@@ -1,4 +1,4 @@
-#CloudGripper API
+# CloudGripper API
 
 ### Set environment variables using your credentials
 ```
