@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 1. **Setting up the Client**:
 
-   First, ensure that your token for the CloudGripper API is set as an environment variable named `CLOUDGRIPPER_TOKEN`.
+   First, ensure that your token for the CloudGripper API is set as an environment variable named `CLOUDGRIPPER_TOKEN`. Ensure you keep this token secure and do not share it publicly.
 
 2. **Importing and Initializing the GripperRobot class**:
 
@@ -31,11 +31,11 @@ pip install -r requirements.txt
    import os
    ```
 
-   Initialize the robot object by specifying its name and your API token.
+   Initialize the robot object by specifying its name and your API token. Name is typically in the format `robotX`, where `X` is the specific number of the robot assigned to you.
 
    ```python
    token = os.environ['CLOUDGRIPPER_TOKEN']
-   robot = GripperRobot('robot3', token)
+   robot = GripperRobot('robotX', token)
    ```
 
 3. **Sending Commands**:
