@@ -3,15 +3,14 @@ import cv2
 import base64
 import numpy as np
 
-api_address_robots = {f"robot{i}": f"robot{i}.cloudgripper.org/api/v1.1/robot" for i in range(1, 33)}
-
+api_address_robots = {f"robot{i}": f"https://cloudgripper.zahidmhd.com/robot{i}/api/v1.1/robot" for i in range(1, 33)}
 
 class GripperRobot:
     global api_address_robots
 
     def __init__(self, name, token):
         self.name = name
-        self.headers = {"Authorization": "Bearer " + token}
+        self.headers = {"apiKey": token}
         self.base_api = api_address_robots[name]
 
     def get_state(self):
