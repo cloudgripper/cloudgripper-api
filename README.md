@@ -94,12 +94,13 @@ Here are some of the basic commands you can send using the CloudGripper library:
   - `robot.move_xy(x, y)`   # Move to the specific x and y position, x,y normalized between 0 and 1 to cover work area
 
 - Gripper Control:
-  - `robot.gripper_open()`
-  - `robot.gripper_close()`
+  - `robot.gripper_open()`   # Opens the gripper fully
+  - `robot.gripper_close()`  # Closes the gripper fully
+  - `robot.move_gripper(val)`# Adjusts the gripper's opening to a specific value, where 0 is fully close and 1 is fully open
 
 - Fetch State and Image:
   - `robot.get_state()`
-  - `robot.getImage()`
+  - `robot.getImageBase()`
   - `robot.getImageTop()`
 
 ## Important Note
