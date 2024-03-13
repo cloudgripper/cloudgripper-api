@@ -8,12 +8,12 @@ import os
 token = os.environ['CLOUDGRIPPER_TOKEN']
 
 # Create a GripperRobot instance
-robotName = 'robot4'
+robotName = 'robot6'
 robot = GripperRobot(robotName, token)
 
 # Demonstrate various robot actions
-img, timestamp = robot.getImage()
-img, timestamp = robot.getImageTop()
+img_base, timestamp = robot.getImageBase()
+img_top, timestamp = robot.getImageTop()
 robot.step_forward()
 robot.step_backward()
 robot.step_right()
