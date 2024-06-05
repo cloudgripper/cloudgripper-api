@@ -28,20 +28,9 @@ def save_state(robot: GripperRobot, output_dir: str, start_time: float, previous
     state, timestamp = robot.get_state()
     relative_time = timestamp - start_time
 
-    state_data = state
-    """
-    state_data = {
-        "position": state[:3],
-        "rotation_angle": state[3],
-        "gripper_angle": state[4],
-        "real_timestamp": timestamp,
-        "relative_timestamp": relative_time
-    }
-    """
-
     if previous_order is not None:
         order_type, order_value = previous_order
-        state_data["previous_order"] = {
+        state["previous_order"] = {
             "order_type": order_type.name,
             "order_value": order_value
         }
@@ -54,7 +43,7 @@ def save_state(robot: GripperRobot, output_dir: str, start_time: float, previous
     else:
         data = []
 
-    data.append(state_data)
+    data.append(state)
 
     with open(state_file, "w") as file:
         json.dump(data, file, indent=4)

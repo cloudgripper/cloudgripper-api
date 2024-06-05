@@ -1,11 +1,10 @@
+from recording import Recorder
+from autograsper import Autograsper, RobotActivity
 import os
 import argparse
 import time
 import threading
 import numpy as np
-
-from autograsper import Autograsper, RobotActivity
-from recording import Recorder
 
 prev_robot_activity = RobotActivity.ACTIVE
 curr_robot_activity = RobotActivity.ACTIVE

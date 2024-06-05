@@ -2,13 +2,25 @@ import argparse
 import os
 import time
 import cv2
+import sys
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+
 from client.cloudgripper_client import GripperRobot
 from library.bottom_image_preprocessing import rotate
-from library.calculate_starting_point import *
+#from library.calculate_starting_point import *
 from library.calibration import order2movement, undistort, undistort_fisheye
 from library.Camera2Robot import *
 from library.object_tracking import *
 from library.utils import get_undistorted_bottom_image
+
+
+
+
+
 
 
 class Recorder:

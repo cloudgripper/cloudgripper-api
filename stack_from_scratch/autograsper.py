@@ -1,15 +1,17 @@
+from dotenv import load_dotenv
+import numpy as np
+from typing import List, Tuple
+from enum import Enum
+import time
+import random
 import argparse
 import os
-import random
-import time
-from enum import Enum
-from typing import List, Tuple
-import numpy as np
-from dotenv import load_dotenv
-from client.cloudgripper_client import GripperRobot
-from library.calibration import order2movement
-from library.Camera2Robot import Camera2Robot
-from library.rgb_object_tracker import all_objects_are_visible, object_tracking
+import sys
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 from library.utils import (
     OrderType,
     generate_position_grid,
@@ -18,10 +20,15 @@ from library.utils import (
     queue_orders,
     queue_orders_with_input,
     sweep_straight,
-    save_state
+    save_state,
 )
 
-# Load environment variables from .env file
+
+from library.rgb_object_tracker import all_objects_are_visible, object_tracking
+from library.Camera2Robot import Camera2Robot
+from library.calibration import order2movement
+from client.cloudgripper_client import GripperRobot
+
 load_dotenv()
 
 
@@ -72,8 +79,7 @@ class Autograsper:
 
         self.robot_idx = args.robot_idx
 
-        save_state(self.robot, self.output_dir,
-                   self.start_time)  # Save initial state
+        save_state(self.robot, self.output_dir, self.start_time)  # Save initial state
 
     def pickup_and_place_object(
         self,
@@ -108,8 +114,9 @@ class Autograsper:
             (OrderType.GRIPPER_CLOSE, []),
         ]
 
-        queue_orders_with_input(self.robot, order_list,
-                                self.output_dir, self.start_time)
+        queue_orders_with_input(
+            self.robot, order_list, self.output_dir, self.start_time
+        )
 
     def reset(
         self,
@@ -146,8 +153,13 @@ class Autograsper:
                 (OrderType.GRIPPER_OPEN, None),
             ]
 
-            queue_orders(self.robot, order_list, time_between_orders,
-                         self.output_dir, self.start_time)
+            queue_orders(
+                self.robot,
+                order_list,
+                time_between_orders,
+                self.output_dir,
+                self.start_time,
+            )
 
     def clear_center(self):
         """
@@ -178,8 +190,7 @@ class Autograsper:
             (OrderType.MOVE_XY, position),
         ]
 
-        queue_orders(self.robot, startup_commands, 1,
-                     self.output_dir, self.start_time)
+        queue_orders(self.robot, startup_commands, 1, self.output_dir, self.start_time)
 
     def run_grasping(self):
         """
@@ -200,9 +211,9 @@ class Autograsper:
             (OrderType.MOVE_XY, [0.0, 1.0]),
         ]
 
-        queue_orders(robot, start_commands, 2,
-                     self.output_dir, self.start_time,
-                     reverse_xy=True)
+        queue_orders(
+            robot, start_commands, 2, self.output_dir, self.start_time, reverse_xy=True
+        )
 
         self.state = RobotActivity.RESETTING
 
@@ -213,9 +224,9 @@ class Autograsper:
             (OrderType.MOVE_XY, [1.0, 0.0]),
         ]
 
-        queue_orders(robot, start_commands, 2,
-                     self.output_dir, self.start_time,
-                     reverse_xy=True)
+        queue_orders(
+            robot, start_commands, 2, self.output_dir, self.start_time, reverse_xy=True
+        )
 
         self.state = RobotActivity.FINISHED
 
@@ -271,8 +282,7 @@ class Autograsper:
                 random_reset_positions = pick_random_positions(
                     position_bank, n_layers, 0.2
                 )
-                self.reset(random_reset_positions,
-                           block_heights, time_between_orders=3)
+                self.reset(random_reset_positions, block_heights, time_between_orders=3)
 
                 if not all_objects_are_visible(
                     blocks, get_undistorted_bottom_image(robot, m, d)
@@ -287,12 +297,11 @@ class Autograsper:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Autograsper Robot Controller")
-    parser.add_argument("--robot_idx", type=str,
-                        required=True, help="Robot index")
-    parser.add_argument("--output_dir", type=str,
-                        required=True, help="Output directory")
+    parser = argparse.ArgumentParser(description="Autograsper Robot Controller")
+    parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
+    parser.add_argument(
+        "--output_dir", type=str, required=True, help="Output directory"
+    )
     args = parser.parse_args()
 
     autograsper = Autograsper(args, args.output_dir)
