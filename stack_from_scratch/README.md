@@ -3,18 +3,17 @@
 ## Table of Contents
 
 1. [Introduction](#introduction)
-2. [Directory Structure](#directory-structure)
-3. [Modules Overview](#modules-overview)
+2. [Modules Overview](#modules-overview)
    - [library/utils.py](#libraryutilspy)
    - [stack_from_scratch/autograsper.py](#stack_from_scratchautograsperpy)
    - [stack_from_scratch/recording.py](#stack_from_scratchrecordingpy)
    - [stack_from_scratch/collect_data_stacking.py](#stack_from_scratchcollect_data_stackingpy)
-4. [Usage](#usage)
-5. [Dependencies](#dependencies)
+3. [Usage](#usage)
+4. [Dependencies](#dependencies)
 
 ## Introduction
 
-This project involves the automation of robotic stacking tasks using a CloudGripper robot. Includes robot control and data collection.
+This project involves automation of robotic stacking tasks using a CloudGripper robot. Includes robot control and data collection.
 
 ### **Featuring:**
 
