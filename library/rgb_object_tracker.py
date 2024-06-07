@@ -7,19 +7,23 @@ def test_calibration(image, colors):
         print("Testing color:", color)
         object_tracking(image, color, DEBUG=True)
 
+
 def all_objects_are_visible(blocks, image):
     for block in blocks:
         try:
             if object_tracking(image, block[0]) is None:
-                print("block not found")
+                print("block not found", block)
                 return False
 
-        except Exception:  # TODO make custom exceptions
+        except Exception as e:  # TODO make custom exceptions
+            print(e)
+            print(block)
             return False
 
     return True
 
-def object_tracking(image, color="red", size_threshold=290, DEBUG=False):
+
+def object_tracking(image, color="red", size_threshold=290, DEBUG=False, debug_image_path="debug_image.png"):
     positions = []
 
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -45,14 +49,16 @@ def object_tracking(image, color="red", size_threshold=290, DEBUG=False):
         lower2 = np.array([10, 31, 24])
         upper2 = np.array([30, 51, 44])
 
+   
     if color == "orange":
         colorFound = True
 
-        lower1 = np.array([132, 29, 10])
-        upper1 = np.array([152, 49, 30])
+        # More inclusive ranges for orange
+        lower1 = np.array([125, 20, 0])
+        upper1 = np.array([185, 75, 55])
 
-        lower2 = np.array([95, 23, 11])
-        upper2 = np.array([115, 43, 31])
+        lower2 = np.array([195, 55, 15])
+        upper2 = np.array([255, 125, 75])
 
     if not colorFound:
         print("Color not found")
@@ -64,10 +70,12 @@ def object_tracking(image, color="red", size_threshold=290, DEBUG=False):
     mask = cv2.bitwise_or(mask1, mask2)
     res = cv2.bitwise_and(image, image, mask=mask)
 
-    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(
+        mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(contours) > 0:
-        large_contours = [c for c in contours if cv2.contourArea(c) > size_threshold]
+        large_contours = [
+            c for c in contours if cv2.contourArea(c) > size_threshold]
         if len(large_contours) > 0:
             c = max(large_contours, key=cv2.contourArea)
             M = cv2.moments(c)
@@ -79,12 +87,11 @@ def object_tracking(image, color="red", size_threshold=290, DEBUG=False):
         return None
 
     if DEBUG:
+        print("debugging object tracker")
         cv2.circle(res, (cx, cy), 5, (0, 0, 255), -1)
         cv2.drawContours(res, contours, -1, (0, 255, 0), 2)
 
-        window_name = "res " + color
-        cv2.imshow(window_name, res)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # Save the debug image to a file
+        cv2.imwrite(debug_image_path, res)
 
-    return np.array([cy, cx])
+    return positions[0]
