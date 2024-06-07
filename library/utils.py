@@ -25,9 +25,24 @@ def save_state(robot: GripperRobot, output_dir: str, start_time: float, previous
     :param start_time: The start time of the autograsper process
     :param previous_order: The previous order executed by the robot
     """
+    return
     state, timestamp = robot.get_state()
     relative_time = timestamp - start_time
 
+    # Convert numpy arrays to lists for JSON serialization
+
+    def convert_ndarray(obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, dict):
+            return {k: convert_ndarray(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [convert_ndarray(v) for v in obj]
+        return obj
+
+    state = convert_ndarray(state)
+
+    print("saving")
     if previous_order is not None:
         order_type, order_value = previous_order
         state["previous_order"] = {
@@ -43,6 +58,7 @@ def save_state(robot: GripperRobot, output_dir: str, start_time: float, previous
     else:
         data = []
 
+    state["relative_time"] = relative_time  # Adding relative time to the state
     data.append(state)
 
     with open(state_file, "w") as file:
@@ -75,7 +91,7 @@ def execute_order(robot: GripperRobot, order: Tuple[OrderType, List[float]], out
             robot.move_z(order_value[0])
             print("Moved Z to", order_value[0])
         elif order_type == OrderType.GRIPPER_OPEN:
-            robot.gripper_open(5)
+            robot.gripper_open()
             print("Gripper opened")
         elif order_type == OrderType.GRIPPER_CLOSE:
             robot.gripper_close()
