@@ -127,21 +127,28 @@ robot_parameters = {
         "b1": 51,
     },
     "robot23": {
-        "a1": 138,
-        "b1": 66,
-        "a2": 134,
-        "b2": 445,
-        "a3": 527,
-        "b3": 70,
-        "a4": 526,
-        "b4": 444,
+        "a1": 591,
+        "b1": 29,
+
+        "a3": 157,
+        "b3": 26,
+
+        "a2": 589,
+        "b2": 463,
+
+        "a4": 151,
+        "b4": 466,
     },
 }
 
 # set robot frame as world frame
 
 
+
 def Camera2Robot(cam_pos, robot_idx):
+    if len(cam_pos) < 2:
+        raise ValueError("Camera2Robot: Camera position must have at least 2 elements")
+
     if not robot_idx in robot_parameters:
         print("Robot index not found")
         return
@@ -161,11 +168,8 @@ def Camera2Robot(cam_pos, robot_idx):
     assert abs(a3 - a4) < 20, "Warning: a3 and a4 are not equal"
 
     width = b2 - b1
-    height = a3 - a1
+    height = a1 - a3
 
-    print(width)
-    print(height)
-    print(width - height)
     assert abs(width - height) < 70, "Warning: width and height are not equal"
 
     robot_x = (cam_pos[0] - a1) / height
