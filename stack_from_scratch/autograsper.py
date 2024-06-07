@@ -22,12 +22,12 @@ from library.utils import (
     sweep_straight,
     save_state,
 )
-
-
 from library.rgb_object_tracker import all_objects_are_visible, object_tracking
 from library.Camera2Robot import Camera2Robot
 from library.calibration import order2movement
 from client.cloudgripper_client import GripperRobot
+
+
 
 load_dotenv()
 
@@ -79,7 +79,8 @@ class Autograsper:
 
         self.robot_idx = args.robot_idx
 
-        save_state(self.robot, self.output_dir, self.start_time)  # Save initial state
+        save_state(self.robot, self.output_dir,
+                   self.start_time)  # Save initial state
 
     def pickup_and_place_object(
         self,
@@ -153,12 +154,8 @@ class Autograsper:
                 (OrderType.GRIPPER_OPEN, None),
             ]
 
-            queue_orders(
-                self.robot,
-                order_list,
-                time_between_orders,
-                self.output_dir,
-                self.start_time,
+            queue_orders_with_input(
+                self.robot, order_list, self.output_dir, self.start_time
             )
 
     def clear_center(self):
@@ -190,7 +187,8 @@ class Autograsper:
             (OrderType.MOVE_XY, position),
         ]
 
-        queue_orders(self.robot, startup_commands, 1, self.output_dir, self.start_time)
+        queue_orders(self.robot, startup_commands, 1,
+                     self.output_dir, self.start_time)
 
     def run_grasping(self):
         """
@@ -205,6 +203,7 @@ class Autograsper:
         # startcommands should be:
         # gripper open, gripper move to 0,0.5, then 0,0
 
+        """
         start_commands = [
             (OrderType.MOVE_XY, [1.0, 0.0]),
             (OrderType.MOVE_XY, [1.0, 1.0]),
@@ -232,21 +231,50 @@ class Autograsper:
 
         time.sleep(1)
         return
+        """
 
-        n_layers = 2
+        """
+        start_commands = [
+            (OrderType.GRIPPER_CLOSE, None),
+            (OrderType.MOVE_Z, [1.0]),
+            (OrderType.MOVE_XY, [0.0, 0.0]),
+            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.MOVE_Z, [1.0]),
+            (OrderType.MOVE_XY, [1.0, 0.0]),
+            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.MOVE_Z, [1.0]),
+            (OrderType.MOVE_XY, [0.0, 1.0]),
+            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.MOVE_Z, [1.0]),
+            (OrderType.MOVE_XY, [1.0, 1.0]),
+            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.MOVE_Z, [1.0]),
+            (OrderType.MOVE_XY, [1.0, 1.0]),
+        ]
+
+        queue_orders_with_input(
+                self.robot, start_commands, self.output_dir, self.start_time
+        )
+
+        self.state = RobotActivity.FINISHED
+        return
+        """
+
         position_bank = generate_position_grid()
-        block_heights = np.repeat([0.4], n_layers)
+        block_height = 0.3
 
         blocks = [
-            ("orange", block_heights[0]),
-            ("green", block_heights[1]),
+            ("green", block_height),
+            ("orange", block_height),
         ]
+        n_layers = len(blocks)
+
+        block_heights = np.repeat([block_height], n_layers)
 
         if not all_objects_are_visible(
             blocks, get_undistorted_bottom_image(robot, m, d)
         ):
             print("all blocks not visible")
-            sweep_straight(robot)
             return
 
         while self.state is not RobotActivity.FINISHED:
@@ -258,8 +286,6 @@ class Autograsper:
                 startup_position = random.choice(position_bank)
                 self.startup(startup_position)
 
-                self.stacking = True
-
                 for color, block_height in blocks:
                     stack_height += block_height
 
@@ -267,22 +293,30 @@ class Autograsper:
                         get_undistorted_bottom_image(robot, m, d), color, DEBUG=False
                     )
 
+
                     object_position = Camera2Robot(camera_position, robot_idx)
+                    print("here")
+                    print("object position", object_position)
+
+                    print(object_position[1], 1- abs(object_position[0]))
+                    object_position = [object_position[1], abs(object_position[0])]
+
+                    #object_position = [0.74, 1-0.76]
 
                     self.pickup_and_place_object(
                         object_position,
-                        0,
+                        max(block_height-0.1, 0.1),
                         stack_height,
-                        time_between_orders=3,
+                        time_between_orders=1,
                     )
 
-                print("resetting")
                 self.state = RobotActivity.RESETTING
 
                 random_reset_positions = pick_random_positions(
                     position_bank, n_layers, 0.2
                 )
-                self.reset(random_reset_positions, block_heights, time_between_orders=3)
+                self.reset(random_reset_positions,
+                           block_heights, time_between_orders=3)
 
                 if not all_objects_are_visible(
                     blocks, get_undistorted_bottom_image(robot, m, d)
@@ -292,13 +326,15 @@ class Autograsper:
 
             except Exception as e:
                 print(
-                    f"An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
+                    f"PAP loop: An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
                 )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Autograsper Robot Controller")
-    parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
+    parser = argparse.ArgumentParser(
+        description="Autograsper Robot Controller")
+    parser.add_argument("--robot_idx", type=str,
+                        required=True, help="Robot index")
     parser.add_argument(
         "--output_dir", type=str, required=True, help="Output directory"
     )
