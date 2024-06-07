@@ -175,6 +175,10 @@ def Camera2Robot(cam_pos, robot_idx):
     robot_x = (cam_pos[0] - a1) / height
     robot_y = (cam_pos[1] - b1) / width
 
+    print("CAMERA2POS")
+    print("x", robot_x)
+    print("y", robot_y)
+
     if robot_x > 1.0:
         robot_x = 1.0
     if robot_y > 1.0:

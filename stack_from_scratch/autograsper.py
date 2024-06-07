@@ -264,8 +264,8 @@ class Autograsper:
         block_height = 0.3
 
         blocks = [
-            ("green", block_height),
             ("orange", block_height),
+            ("green", block_height),
         ]
         n_layers = len(blocks)
 
@@ -294,9 +294,10 @@ class Autograsper:
                     )
 
 
+                    print("camera pos", camera_position)
                     object_position = Camera2Robot(camera_position, robot_idx)
-                    print("here")
                     print("object position", object_position)
+                    print("object position fixed", 1 - abs(object_position[0]), object_position[1])
 
                     print(object_position[1], 1- abs(object_position[0]))
                     object_position = [object_position[1], abs(object_position[0])]
