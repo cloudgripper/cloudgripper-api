@@ -7,6 +7,7 @@ import random
 import argparse
 import os
 import sys
+from pynput import keyboard
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
@@ -27,16 +28,13 @@ from library.Camera2Robot import Camera2Robot, cam_to_robot
 from library.calibration import order2movement
 from client.cloudgripper_client import GripperRobot
 
-
 load_dotenv()
-
 
 class RobotActivity(Enum):
     ACTIVE = 1
     RESETTING = 2
     FINISHED = 3
     STARTUP = 4
-
 
 class Autograsper:
     def __init__(self, args, output_dir):
@@ -97,6 +95,9 @@ class Autograsper:
         :param target_position: Target position for placing the object
         :param time_between_orders: Time to wait between orders
         """
+        self.robot.rotate(60)
+        time.sleep(2)
+        self.robot.rotate(00)
 
         #movement = order2movement(object_position[0], object_position[1])
         movement = object_position
@@ -213,7 +214,6 @@ class Autograsper:
                 self.robot, commands, self.output_dir, self.start_time
         )
 
-
     def run_grasping(self):
         """
         Run the main grasping loop.
@@ -222,34 +222,6 @@ class Autograsper:
         m = self.m
         d = self.d
         robot_idx = self.robot_idx
-
-
-        camera_coordinates = (213, 515)
-        (rob_x, rob_y) = cam_to_robot(robot_idx, camera_coordinates)
-        print("cam to robot", rob_x, rob_y)
-
-        """
-        start_commands = [
-            (OrderType.GRIPPER_CLOSE, None),
-            (OrderType.MOVE_Z, [1.0]),
-            (OrderType.MOVE_XY, [rob_x, rob_y]),
-            (OrderType.GRIPPER_OPEN, None),
-            (OrderType.MOVE_Z, [0.3]),
-            (OrderType.GRIPPER_CLOSE, None),
-            (OrderType.MOVE_Z, [1.0]),
-            (OrderType.MOVE_Z, [0.3]),
-            (OrderType.GRIPPER_OPEN, None),
-            (OrderType.MOVE_Z, [1.0]),
-            (OrderType.GRIPPER_CLOSE, None),
-            ]
-
-        queue_orders_with_input(
-                self.robot, start_commands, self.output_dir, self.start_time
-        )
-
-        self.state = RobotActivity.FINISHED
-        return
-        """
 
         position_bank = generate_position_grid()
         block_height = 0.3
@@ -284,15 +256,11 @@ class Autograsper:
                         get_undistorted_bottom_image(robot, m, d), color, DEBUG=False
                     )
 
-                    print("camera pos", camera_position[0], camera_position[1])
-
-                    print("fixed object pos", cam_to_robot(robot_idx, camera_coordinates))
-                    print("non-fixed object pos", cam_to_robot(robot_idx, camera_position))
                     object_position = cam_to_robot(robot_idx, camera_position)
 
                     self.pickup_and_place_object(
                         object_position,
-                        max(block_height - 0.1, 0.1),
+                        max(block_height - 0.05, 0.1),
                         stack_height,
                         time_between_orders=1,
                     )
@@ -314,6 +282,59 @@ class Autograsper:
                 print(
                     f"PAP loop: An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
                 )
+
+
+    
+    def manual_control(self):
+        """
+        Manually control the robot using keyboard inputs.
+        """
+        self.current_x = 0.0
+        self.current_y = 0.0
+        self.current_z = 0.0
+        self.current_rotation = 0
+
+        def on_press(key):
+            try:
+                if key.char == 'w':
+                    self.current_y += 0.1
+                    self.robot.move_xy(self.current_x, self.current_y)
+                elif key.char == 'a':
+                    self.current_x -= 0.1
+                    self.robot.move_xy(self.current_x, self.current_y)
+                elif key.char == 's':
+                    self.current_y -= 0.1
+                    self.robot.move_xy(self.current_x, self.current_y)
+                elif key.char == 'd':
+                    self.current_x += 0.1
+                    self.robot.move_xy(self.current_x, self.current_y)
+                elif key.char == 'r':
+                    self.current_z += 0.1
+                    self.robot.move_z(self.current_z)
+                elif key.char == 'f':
+                    self.current_z -= 0.1
+                    self.robot.move_z(self.current_z)
+                elif key.char == 'o':
+                    self.robot.gripper_open()
+                elif key.char == 'p':
+                    self.robot.gripper_close()
+                elif key.char == 'q':
+                    self.current_rotation -= 10
+                    self.robot.rotate(self.current_rotation)
+                elif key.char == 'e':
+                    self.current_rotation += 10
+                    self.robot.rotate(self.current_rotation)
+            except Exception as e:
+                print(e)
+                pass
+
+        def on_release(key):
+            if key == keyboard.Key.esc:
+                # Stop listener
+                return False
+
+        with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+            listener.join()
 
 
 if __name__ == "__main__":
