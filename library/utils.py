@@ -16,7 +16,12 @@ class OrderType(Enum):
     GRIPPER_OPEN = 4
 
 
-def save_state(robot: GripperRobot, output_dir: str, start_time: float, previous_order: Optional[Tuple[OrderType, List[float]]] = None):
+def save_state(
+    robot: GripperRobot,
+    output_dir: str,
+    start_time: float,
+    previous_order: Optional[Tuple[OrderType, List[float]]] = None,
+):
     """
     Save the current state of the robot to the states.json file.
 
@@ -47,7 +52,7 @@ def save_state(robot: GripperRobot, output_dir: str, start_time: float, previous
         order_type, order_value = previous_order
         state["previous_order"] = {
             "order_type": order_type.name,
-            "order_value": order_value
+            "order_value": order_value,
         }
 
     state_file = os.path.join(output_dir, "states.json")
@@ -65,7 +70,13 @@ def save_state(robot: GripperRobot, output_dir: str, start_time: float, previous
         json.dump(data, file, indent=4)
 
 
-def execute_order(robot: GripperRobot, order: Tuple[OrderType, List[float]], output_dir: str, start_time: float, reverse_xy: bool = False):
+def execute_order(
+    robot: GripperRobot,
+    order: Tuple[OrderType, List[float]],
+    output_dir: str,
+    start_time: float,
+    reverse_xy: bool = False,
+):
     """
     Execute a single order on the robot and save its state.
 
@@ -94,7 +105,11 @@ def execute_order(robot: GripperRobot, order: Tuple[OrderType, List[float]], out
             robot.gripper_open()
             print("Gripper opened")
         elif order_type == OrderType.GRIPPER_CLOSE:
-            robot.gripper_close()
+            robot.move_gripper(10)
+            time.sleep(1.0)
+            robot.move_gripper(5)
+            time.sleep(1.0)
+            robot.move_gripper(0)
             print("Gripper closed")
 
         save_state(robot, output_dir, start_time, order)
@@ -109,7 +124,7 @@ def queue_orders(
     time_between_orders: float,
     output_dir: str = "",
     start_time: float = -1.0,
-    reverse_xy: bool = False
+    reverse_xy: bool = False,
 ):
     """
     Queue a list of orders for the robot to execute sequentially and save state after each order.
@@ -126,7 +141,10 @@ def queue_orders(
 
 
 def queue_orders_with_input(
-    robot: GripperRobot, order_list: List[Tuple[OrderType, List[float]]], output_dir: str = "", start_time: float = -1.0
+    robot: GripperRobot,
+    order_list: List[Tuple[OrderType, List[float]]],
+    output_dir: str = "",
+    start_time: float = -1.0,
 ):
     """
     Queue a list of orders for the robot to execute sequentially, waiting for user input between each command, and save state after each order.

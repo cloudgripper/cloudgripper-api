@@ -1,4 +1,5 @@
 import cv2
+
 # import cv2.aruco as aruco
 import numpy as np
 
@@ -127,22 +128,75 @@ robot_parameters = {
         "b1": 51,
     },
     "robot23": {
-        "a1": 591,
-        "b1": 20,
-
-        "a3": 157,
-        "b3": 18,
-
-        "a2": 589,
-        "b2": 455,
-
-        "a4": 151,
-        "b4": 460,
+        "a1": 595,
+        "b1": 36,
+        "a3": 160,
+        "b3": 32,
+        "a2": 595,
+        "b2": 470,
+        "a4": 155,
+        "b4": 472,
     },
 }
 
-# set robot frame as world frame
 
+def cam_to_robot(robot_idx, camera_coordinates):
+
+    def calculate_homography_matrix(pixel_coords, robot_coords):
+        """
+        Calculate the homography matrix from pixel coordinates to robot coordinates.
+
+        Parameters:
+        pixel_coords (np.array): Array of pixel coordinates [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
+        robot_coords (np.array): Array of robot coordinates [(0, 0), (0, 1), (1, 0), (1, 1)]
+
+        Returns:
+        np.array: Homography matrix
+        """
+        # Calculate homography matrix
+        H, _ = cv2.findHomography(np.array(pixel_coords), np.array(robot_coords))
+        return H
+
+    def transform_pixel_to_robot(H, pixel_point):
+        """
+        Transform a pixel coordinate to a robot coordinate using the homography matrix.
+
+        Parameters:
+        H (np.array): Homography matrix
+        pixel_point (tuple): Pixel coordinate (x, y)
+
+        Returns:
+        tuple: Transformed robot coordinate (rx, ry)
+        """
+        # Create a homogeneous coordinate
+        pixel_point_h = np.array([pixel_point[0], pixel_point[1], 1]).reshape(3, 1)
+
+        # Transform the pixel point using the homography matrix
+        robot_point_h = np.dot(H, pixel_point_h)
+
+        # Normalize to get the coordinates in the robot space
+        robot_point = robot_point_h / robot_point_h[2]
+
+        return (robot_point[0][0], robot_point[1][0])
+
+    y1 = robot_parameters[robot_idx]["a1"]
+    x1 = robot_parameters[robot_idx]["b1"]
+    y3 = robot_parameters[robot_idx]["a2"]
+    x3 = robot_parameters[robot_idx]["b2"]
+    y2 = robot_parameters[robot_idx]["a3"]
+    x2 = robot_parameters[robot_idx]["b3"]
+    y4 = robot_parameters[robot_idx]["a4"]
+    x4 = robot_parameters[robot_idx]["b4"]
+    pixel_coords = [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
+    robot_coords = [(0, 0), (0, 1), (1, 0), (1, 1)]
+
+    # Calculate homography matrix
+    H = calculate_homography_matrix(pixel_coords, robot_coords)
+
+    # Transform a new pixel coordinate (example: (12, 36))
+    robot_coord = transform_pixel_to_robot(H, camera_coordinates)
+    return robot_coord
+    print(f"Robot coordinates (new calc): {robot_coord}")
 
 
 def Camera2Robot(cam_pos, robot_idx):

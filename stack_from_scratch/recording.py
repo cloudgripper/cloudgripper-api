@@ -4,7 +4,7 @@ import time
 import cv2
 import sys
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
@@ -13,6 +13,7 @@ from client.cloudgripper_client import GripperRobot
 from library.Camera2Robot import *
 from library.object_tracking import *
 from library.utils import get_undistorted_bottom_image
+
 
 class Recorder:
     def __init__(self, session_id, output_dir, m, d, token, idx):
@@ -28,16 +29,26 @@ class Recorder:
         self.frame_counter = 0
         self.video_counter = 0
 
-    def _start_new_video(self, output_video_dir, output_bottom_video_dir, video_counter, fourcc, image_shape, bottom_image_shape):
+    def _start_new_video(
+        self,
+        output_video_dir,
+        output_bottom_video_dir,
+        video_counter,
+        fourcc,
+        image_shape,
+        bottom_image_shape,
+    ):
         video_filename_top = os.path.join(
-            output_video_dir, f"video_{video_counter}.mp4")
-        video_writer_top = cv2.VideoWriter(
-            video_filename_top, fourcc, 5.0, image_shape)
+            output_video_dir, f"video_{video_counter}.mp4"
+        )
+        video_writer_top = cv2.VideoWriter(video_filename_top, fourcc, 5.0, image_shape)
 
         video_filename_bottom = os.path.join(
-            output_bottom_video_dir, f"video_{video_counter}.mp4")
+            output_bottom_video_dir, f"video_{video_counter}.mp4"
+        )
         video_writer_bottom = cv2.VideoWriter(
-            video_filename_bottom, fourcc, 5.0, bottom_image_shape)
+            video_filename_bottom, fourcc, 5.0, bottom_image_shape
+        )
 
         return video_writer_top, video_writer_bottom
 
@@ -55,24 +66,33 @@ class Recorder:
             imageTop, timestampTop = robot.getImageTop()
             bottom_image = get_undistorted_bottom_image(robot, self.m, self.d)
 
-            if start_new_video_every is not None and self.frame_counter % start_new_video_every == 0:
+            if (
+                start_new_video_every is not None
+                and self.frame_counter % start_new_video_every == 0
+            ):
                 if self.video_writer_top is not None:
                     self.video_writer_top.release()
                 if self.video_writer_bottom is not None:
                     self.video_writer_bottom.release()
 
                 self.video_writer_top, self.video_writer_bottom = self._start_new_video(
-                    self.output_video_dir, self.output_bottom_video_dir, self.video_counter, fourcc,
-                    (imageTop.shape[1], imageTop.shape[0]
-                     ), (bottom_image.shape[1], bottom_image.shape[0])
+                    self.output_video_dir,
+                    self.output_bottom_video_dir,
+                    self.video_counter,
+                    fourcc,
+                    (imageTop.shape[1], imageTop.shape[0]),
+                    (bottom_image.shape[1], bottom_image.shape[0]),
                 )
 
                 self.video_counter += 1
             elif start_new_video_every is None and self.frame_counter == 0:
                 self.video_writer_top, self.video_writer_bottom = self._start_new_video(
-                    self.output_video_dir, self.output_bottom_video_dir, self.video_counter, fourcc,
-                    (imageTop.shape[1], imageTop.shape[0]
-                     ), (bottom_image.shape[1], bottom_image.shape[0])
+                    self.output_video_dir,
+                    self.output_bottom_video_dir,
+                    self.video_counter,
+                    fourcc,
+                    (imageTop.shape[1], imageTop.shape[0]),
+                    (bottom_image.shape[1], bottom_image.shape[0]),
                 )
 
                 self.video_counter += 1
@@ -95,15 +115,16 @@ class Recorder:
 
         # write the final top image
         imageTop, timestampTop = robot.getImageTop()
-        cv2.imwrite(os.path.join(self.final_image_dir,
-                    f"final_image_{self.video_counter}.jpg"), imageTop)
+        cv2.imwrite(
+            os.path.join(self.final_image_dir, f"final_image_{self.video_counter}.jpg"),
+            imageTop,
+        )
 
         cv2.destroyAllWindows()
 
     def _initialize_directories(self):
         self.output_video_dir = os.path.join(self.output_dir, "Video")
-        self.output_bottom_video_dir = os.path.join(
-            self.output_dir, "Bottom_Video")
+        self.output_bottom_video_dir = os.path.join(self.output_dir, "Bottom_Video")
         self.final_image_dir = os.path.join(self.output_dir, "Final_Image")
 
         os.makedirs(self.output_video_dir, exist_ok=True)
@@ -126,10 +147,10 @@ class Recorder:
 # if called as main, run the main function
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot Index")
-    parser.add_argument("--robot_idx", type=str,
-                        required=True, help="Robot Index")
+    parser.add_argument("--robot_idx", type=str, required=True, help="Robot Index")
     parser.add_argument(
-        "--output_dir", help="The prefix for the directories", required=True)
+        "--output_dir", help="The prefix for the directories", required=True
+    )
 
     args = parser.parse_args()
     idx = args.robot_idx

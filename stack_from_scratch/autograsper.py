@@ -23,10 +23,9 @@ from library.utils import (
     save_state,
 )
 from library.rgb_object_tracker import all_objects_are_visible, object_tracking
-from library.Camera2Robot import Camera2Robot
+from library.Camera2Robot import Camera2Robot, cam_to_robot
 from library.calibration import order2movement
 from client.cloudgripper_client import GripperRobot
-
 
 
 load_dotenv()
@@ -79,8 +78,7 @@ class Autograsper:
 
         self.robot_idx = args.robot_idx
 
-        save_state(self.robot, self.output_dir,
-                   self.start_time)  # Save initial state
+        save_state(self.robot, self.output_dir, self.start_time)  # Save initial state
 
     def pickup_and_place_object(
         self,
@@ -99,7 +97,9 @@ class Autograsper:
         :param target_position: Target position for placing the object
         :param time_between_orders: Time to wait between orders
         """
-        movement = order2movement(object_position[0], object_position[1])
+
+        #movement = order2movement(object_position[0], object_position[1])
+        movement = object_position
 
         order_list = [
             (OrderType.MOVE_Z, [1]),
@@ -187,54 +187,11 @@ class Autograsper:
             (OrderType.MOVE_XY, position),
         ]
 
-        queue_orders(self.robot, startup_commands, 1,
-                     self.output_dir, self.start_time)
+        queue_orders(self.robot, startup_commands, 1, self.output_dir, self.start_time)
 
-    def run_grasping(self):
-        """
-        Run the main grasping loop.
-        """
-        robot = self.robot
-        m = self.m
-        d = self.d
-        robot_idx = self.robot_idx
 
-        # run startcommands first
-        # startcommands should be:
-        # gripper open, gripper move to 0,0.5, then 0,0
-
-        """
-        start_commands = [
-            (OrderType.MOVE_XY, [1.0, 0.0]),
-            (OrderType.MOVE_XY, [1.0, 1.0]),
-            (OrderType.MOVE_XY, [0.0, 1.0]),
-        ]
-
-        queue_orders(
-            robot, start_commands, 2, self.output_dir, self.start_time, reverse_xy=True
-        )
-
-        self.state = RobotActivity.RESETTING
-
-        time.sleep(3)
-        start_commands = [
-            (OrderType.MOVE_XY, [0.0, 1.0]),
-            (OrderType.MOVE_XY, [1.0, 0.0]),
-            (OrderType.MOVE_XY, [1.0, 0.0]),
-        ]
-
-        queue_orders(
-            robot, start_commands, 2, self.output_dir, self.start_time, reverse_xy=True
-        )
-
-        self.state = RobotActivity.FINISHED
-
-        time.sleep(1)
-        return
-        """
-
-        """
-        start_commands = [
+    def run_calibration(self):
+        commands = [
             (OrderType.GRIPPER_CLOSE, None),
             (OrderType.MOVE_Z, [1.0]),
             (OrderType.MOVE_XY, [0.0, 0.0]),
@@ -253,6 +210,40 @@ class Autograsper:
         ]
 
         queue_orders_with_input(
+                self.robot, commands, self.output_dir, self.start_time
+        )
+
+
+    def run_grasping(self):
+        """
+        Run the main grasping loop.
+        """
+        robot = self.robot
+        m = self.m
+        d = self.d
+        robot_idx = self.robot_idx
+
+
+        camera_coordinates = (213, 515)
+        (rob_x, rob_y) = cam_to_robot(robot_idx, camera_coordinates)
+        print("cam to robot", rob_x, rob_y)
+
+        """
+        start_commands = [
+            (OrderType.GRIPPER_CLOSE, None),
+            (OrderType.MOVE_Z, [1.0]),
+            (OrderType.MOVE_XY, [rob_x, rob_y]),
+            (OrderType.GRIPPER_OPEN, None),
+            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.GRIPPER_CLOSE, None),
+            (OrderType.MOVE_Z, [1.0]),
+            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.GRIPPER_OPEN, None),
+            (OrderType.MOVE_Z, [1.0]),
+            (OrderType.GRIPPER_CLOSE, None),
+            ]
+
+        queue_orders_with_input(
                 self.robot, start_commands, self.output_dir, self.start_time
         )
 
@@ -264,8 +255,8 @@ class Autograsper:
         block_height = 0.3
 
         blocks = [
-            ("orange", block_height),
             ("green", block_height),
+            ("orange", block_height),
         ]
         n_layers = len(blocks)
 
@@ -293,20 +284,15 @@ class Autograsper:
                         get_undistorted_bottom_image(robot, m, d), color, DEBUG=False
                     )
 
+                    print("camera pos", camera_position[0], camera_position[1])
 
-                    print("camera pos", camera_position)
-                    object_position = Camera2Robot(camera_position, robot_idx)
-                    print("object position", object_position)
-                    print("object position fixed", 1 - abs(object_position[0]), object_position[1])
-
-                    print(object_position[1], 1- abs(object_position[0]))
-                    object_position = [object_position[1], abs(object_position[0])]
-
-                    #object_position = [0.74, 1-0.76]
+                    print("fixed object pos", cam_to_robot(robot_idx, camera_coordinates))
+                    print("non-fixed object pos", cam_to_robot(robot_idx, camera_position))
+                    object_position = cam_to_robot(robot_idx, camera_position)
 
                     self.pickup_and_place_object(
                         object_position,
-                        max(block_height-0.1, 0.1),
+                        max(block_height - 0.1, 0.1),
                         stack_height,
                         time_between_orders=1,
                     )
@@ -316,8 +302,7 @@ class Autograsper:
                 random_reset_positions = pick_random_positions(
                     position_bank, n_layers, 0.2
                 )
-                self.reset(random_reset_positions,
-                           block_heights, time_between_orders=3)
+                self.reset(random_reset_positions, block_heights, time_between_orders=3)
 
                 if not all_objects_are_visible(
                     blocks, get_undistorted_bottom_image(robot, m, d)
@@ -332,10 +317,8 @@ class Autograsper:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Autograsper Robot Controller")
-    parser.add_argument("--robot_idx", type=str,
-                        required=True, help="Robot index")
+    parser = argparse.ArgumentParser(description="Autograsper Robot Controller")
+    parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
     parser.add_argument(
         "--output_dir", type=str, required=True, help="Output directory"
     )

@@ -74,8 +74,7 @@ def state_monitor(autograsper):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot Controller")
-    parser.add_argument("--robot_idx", type=str,
-                        required=True, help="Robot index")
+    parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
 
     args = parser.parse_args()
     robot_idx = args.robot_idx
@@ -102,11 +101,9 @@ if __name__ == "__main__":
     recorder = setup_recorder(task_dir, robot_idx)
 
     # Run Autograsper and Recorder in parallel
-    autograsper_thread = threading.Thread(
-        target=run_autograsper, args=(autograsper,))
+    autograsper_thread = threading.Thread(target=run_autograsper, args=(autograsper,))
     recorder_thread = threading.Thread(target=run_recorder, args=(recorder,))
-    monitor_thread = threading.Thread(
-        target=state_monitor, args=(autograsper,))
+    monitor_thread = threading.Thread(target=state_monitor, args=(autograsper,))
 
     autograsper_thread.start()
     recorder_thread.start()
@@ -115,8 +112,7 @@ if __name__ == "__main__":
     while True:
         with state_lock:
             if shared_state != prev_robot_activity:
-                print("State change detected:",
-                      prev_robot_activity, "->", shared_state)
+                print("State change detected:", prev_robot_activity, "->", shared_state)
 
                 if shared_state == RobotActivity.ACTIVE:
                     # Create a new data point for task
