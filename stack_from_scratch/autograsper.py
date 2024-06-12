@@ -95,10 +95,6 @@ class Autograsper:
         :param target_position: Target position for placing the object
         :param time_between_orders: Time to wait between orders
         """
-        self.robot.rotate(60)
-        time.sleep(2)
-        self.robot.rotate(00)
-
         #movement = order2movement(object_position[0], object_position[1])
         movement = object_position
 
@@ -107,13 +103,13 @@ class Autograsper:
             (OrderType.MOVE_XY, movement),
             (OrderType.GRIPPER_OPEN, []),
             (OrderType.MOVE_Z, [object_height]),
-            (OrderType.GRIPPER_CLOSE, []),
+            (OrderType.GRIPPER_CLOSE, [0.5]),
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, target_position),
             (OrderType.MOVE_Z, [target_height]),
             (OrderType.GRIPPER_OPEN, []),
             (OrderType.MOVE_Z, [1]),
-            (OrderType.GRIPPER_CLOSE, []),
+            (OrderType.GRIPPER_CLOSE, [0]),
         ]
 
         queue_orders_with_input(
@@ -183,6 +179,8 @@ class Autograsper:
 
         :param position: Position to start up at
         """
+        self.robot.rotate(0)
+        time.sleep(0.5)
         startup_commands = [
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, position),
@@ -215,6 +213,8 @@ class Autograsper:
         )
 
     def run_grasping(self):
+        #self.manual_control()
+        #return
         """
         Run the main grasping loop.
         """
@@ -293,31 +293,45 @@ class Autograsper:
         self.current_y = 0.0
         self.current_z = 0.0
         self.current_rotation = 0
+        self.current_angle = 0
 
+        
         def on_press(key):
             try:
                 if key.char == 'w':
                     self.current_y += 0.1
+                    self.current_y = min(max(self.current_y, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
                 elif key.char == 'a':
                     self.current_x -= 0.1
+                    self.current_x = min(max(self.current_x, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
                 elif key.char == 's':
                     self.current_y -= 0.1
+                    self.current_y = min(max(self.current_y, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
                 elif key.char == 'd':
                     self.current_x += 0.1
+                    self.current_x = min(max(self.current_x, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
                 elif key.char == 'r':
                     self.current_z += 0.1
+                    self.current_z = min(max(self.current_z, 0), 1)
                     self.robot.move_z(self.current_z)
                 elif key.char == 'f':
                     self.current_z -= 0.1
+                    self.current_z = min(max(self.current_z, 0), 1)
                     self.robot.move_z(self.current_z)
                 elif key.char == 'o':
-                    self.robot.gripper_open()
+                    self.current_angle += 0.1
+                    self.current_angle = min(self.current_angle, 1)
+                    print(self.current_angle)
+                    self.robot.move_gripper(self.current_angle)
                 elif key.char == 'p':
-                    self.robot.gripper_close()
+                    self.current_angle -= 0.1
+                    self.current_angle = max(self.current_angle, 0)
+                    print(self.current_angle)
+                    self.robot.move_gripper(self.current_angle)
                 elif key.char == 'q':
                     self.current_rotation -= 10
                     self.robot.rotate(self.current_rotation)
@@ -327,6 +341,7 @@ class Autograsper:
             except Exception as e:
                 print(e)
                 pass
+
 
         def on_release(key):
             if key == keyboard.Key.esc:
