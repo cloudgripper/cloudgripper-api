@@ -105,13 +105,15 @@ def execute_order(
             robot.gripper_open()
             print("Gripper opened")
         elif order_type == OrderType.GRIPPER_CLOSE:
-            robot.move_gripper(10)
-            time.sleep(1.0)
-            robot.move_gripper(5)
-            time.sleep(1.0)
-            robot.move_gripper(0)
+            if len(order_value) != 0:
+                robot.move_gripper(order_value[0])
+            else:
+                robot.move_gripper(0.55)
+                time.sleep(0.5)
+                robot.move_gripper(0.5)
             print("Gripper closed")
 
+        print(robot.get_state())
         save_state(robot, output_dir, start_time, order)
 
     except (IndexError, ValueError) as e:
