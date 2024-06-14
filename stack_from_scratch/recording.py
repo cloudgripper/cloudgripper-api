@@ -1,8 +1,9 @@
 import argparse
 import os
-import time
-import cv2
 import sys
+import time
+
+import cv2
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
@@ -97,6 +98,8 @@ class Recorder:
 
                 self.video_counter += 1
 
+            time.sleep(0.01)
+
             self.video_writer_top.write(imageTop)
             self.video_writer_bottom.write(bottom_image)
 
@@ -144,7 +147,6 @@ class Recorder:
         print("Stop flag set to True")
 
 
-# if called as main, run the main function
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot Index")
     parser.add_argument("--robot_idx", type=str, required=True, help="Robot Index")
