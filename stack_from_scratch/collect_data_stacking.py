@@ -1,10 +1,11 @@
-from recording import Recorder
-from autograsper import Autograsper, RobotActivity
-import os
 import argparse
-import time
+import os
 import threading
+import time
+
 import numpy as np
+from autograsper import Autograsper, RobotActivity
+from recording import Recorder
 
 prev_robot_activity = RobotActivity.ACTIVE
 curr_robot_activity = RobotActivity.ACTIVE
@@ -128,6 +129,7 @@ if __name__ == "__main__":
             if shared_state == RobotActivity.FINISHED:
                 if recorder is not None:
                     recorder.stop()  # Ensure recorder is stopped when finished
+                    time.sleep(1)
                     recorder_thread.join()  # Ensure the recorder thread has finished
                 break
 

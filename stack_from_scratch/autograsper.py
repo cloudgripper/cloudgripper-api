@@ -1,18 +1,23 @@
-from dotenv import load_dotenv
-import numpy as np
-from typing import List, Tuple
-from enum import Enum
-import time
-import random
 import argparse
 import os
+import random
 import sys
+import time
+from enum import Enum
+from typing import List, Tuple
+
+import numpy as np
+from dotenv import load_dotenv
 from pynput import keyboard
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
+from client.cloudgripper_client import GripperRobot
+from library.calibration import order2movement
+from library.Camera2Robot import Camera2Robot, cam_to_robot
+from library.rgb_object_tracker import all_objects_are_visible, object_tracking
 from library.utils import (
     OrderType,
     generate_position_grid,
@@ -20,21 +25,19 @@ from library.utils import (
     pick_random_positions,
     queue_orders,
     queue_orders_with_input,
-    sweep_straight,
     save_state,
+    sweep_straight,
 )
-from library.rgb_object_tracker import all_objects_are_visible, object_tracking
-from library.Camera2Robot import Camera2Robot, cam_to_robot
-from library.calibration import order2movement
-from client.cloudgripper_client import GripperRobot
 
 load_dotenv()
+
 
 class RobotActivity(Enum):
     ACTIVE = 1
     RESETTING = 2
     FINISHED = 3
     STARTUP = 4
+
 
 class Autograsper:
     def __init__(self, args, output_dir):
@@ -95,7 +98,6 @@ class Autograsper:
         :param target_position: Target position for placing the object
         :param time_between_orders: Time to wait between orders
         """
-        #movement = order2movement(object_position[0], object_position[1])
         movement = object_position
 
         order_list = [
@@ -103,7 +105,7 @@ class Autograsper:
             (OrderType.MOVE_XY, movement),
             (OrderType.GRIPPER_OPEN, []),
             (OrderType.MOVE_Z, [object_height]),
-            (OrderType.GRIPPER_CLOSE, [0.5]),
+            (OrderType.GRIPPER_CLOSE, []),
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, target_position),
             (OrderType.MOVE_Z, [target_height]),
@@ -142,7 +144,7 @@ class Autograsper:
                 order_list += [
                     (OrderType.MOVE_Z, [1]),
                     (OrderType.MOVE_XY, stack_position),
-                    (OrderType.GRIPPER_OPEN, None)
+                    (OrderType.GRIPPER_OPEN, None),
                 ]
 
             order_list += [
@@ -191,7 +193,6 @@ class Autograsper:
 
         queue_orders(self.robot, startup_commands, 1, self.output_dir, self.start_time)
 
-
     def run_calibration(self):
         commands = [
             (OrderType.GRIPPER_CLOSE, None),
@@ -211,9 +212,7 @@ class Autograsper:
             (OrderType.MOVE_XY, [1.0, 1.0]),
         ]
 
-        queue_orders_with_input(
-                self.robot, commands, self.output_dir, self.start_time
-        )
+        queue_orders_with_input(self.robot, commands, self.output_dir, self.start_time)
 
     def run_grasping(self):
         self.manual_control()
@@ -230,7 +229,7 @@ class Autograsper:
         block_height = 0.4
 
         blocks = [
-            ("orange", block_height),
+            ("red", block_height),
             ("green", block_height),
         ]
         n_layers = len(blocks)
@@ -244,7 +243,6 @@ class Autograsper:
             return
 
         while self.state is not RobotActivity.FINISHED:
-
             self.state = RobotActivity.ACTIVE
 
             try:
@@ -253,8 +251,6 @@ class Autograsper:
                 self.startup(startup_position)
 
                 for color, block_height in blocks:
-                    stack_height += block_height
-
                     camera_position = object_tracking(
                         get_undistorted_bottom_image(robot, m, d), color, DEBUG=False
                     )
@@ -263,10 +259,12 @@ class Autograsper:
 
                     self.pickup_and_place_object(
                         object_position,
-                        max(block_height - 0.25, 0.02), # grip at max grip surface area
-                        stack_height+0.1,  # place at 0.1
+                        max(block_height - 0.25, 0.02),  # grip at max grip surface area
+                        stack_height,
                         time_between_orders=1,
                     )
+
+                    stack_height += block_height
 
                 self.state = RobotActivity.RESETTING
 
@@ -286,8 +284,6 @@ class Autograsper:
                     f"PAP loop: An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
                 )
 
-
-    
     def manual_control(self):
         """
         Manually control the robot using keyboard inputs.
@@ -298,69 +294,68 @@ class Autograsper:
         self.current_rotation = 0
         self.current_angle = 0.5
 
-
         def on_press(key):
             try:
-                if key.char == 'w':
+                if key.char == "w":
                     self.current_y += 0.1
                     self.current_y = min(max(self.current_y, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
-                elif key.char == 'a':
+                elif key.char == "a":
                     self.current_x -= 0.1
                     self.current_x = min(max(self.current_x, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
-                elif key.char == 's':
+                elif key.char == "s":
                     self.current_y -= 0.1
                     self.current_y = min(max(self.current_y, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
 
-                elif key.char == 'x':
+                elif key.char == "x":
                     self.current_y -= 0.05
                     self.current_y = min(max(self.current_y, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
 
-                elif key.char == 'z':
+                elif key.char == "z":
                     self.current_y -= 0.01
                     self.current_y = min(max(self.current_y, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
 
-                elif key.char == 'd':
+                elif key.char == "d":
                     self.current_x += 0.1
                     self.current_x = min(max(self.current_x, 0), 1)
                     self.robot.move_xy(self.current_x, self.current_y)
-                elif key.char == 'r':
+                elif key.char == "r":
                     self.current_z += 0.1
                     self.current_z = min(max(self.current_z, 0), 1)
                     print(self.current_z)
                     self.robot.move_z(self.current_z)
-                elif key.char == 'f':
+                elif key.char == "f":
                     self.current_z -= 0.1
                     self.current_z = min(max(self.current_z, 0), 1)
                     print(self.current_z)
                     self.robot.move_z(self.current_z)
-                elif key.char == 'i':
+                elif key.char == "i":
                     self.current_angle += 0.05
                     self.current_angle = min(self.current_angle, 1)
                     print(self.current_angle)
                     self.robot.move_gripper(self.current_angle)
-                elif key.char == 'o':
+                elif key.char == "o":
                     self.current_angle += 0.01
                     self.current_angle = min(self.current_angle, 1)
                     print(self.current_angle)
                     self.robot.move_gripper(self.current_angle)
-                elif key.char == 'p':
+                elif key.char == "p":
                     self.current_angle -= 0.01
                     self.current_angle = max(self.current_angle, 0.3)
                     print(self.current_angle)
                     self.robot.move_gripper(self.current_angle)
-                elif key.char == 'q':
+                elif key.char == "q":
                     self.current_rotation -= 10
                     self.robot.rotate(self.current_rotation)
-                elif key.char == 'e':
+                elif key.char == "e":
                     self.current_rotation += 10
                     self.robot.rotate(self.current_rotation)
 
-                elif key.char == 'n':
+                elif key.char == "n":
                     self.robot.gripper_open()
                     time.sleep(1)
                     self.robot.move_z(0)
@@ -369,19 +364,20 @@ class Autograsper:
                     time.sleep(1)
                     self.robot.move_z(1)
                     time.sleep(1)
-                    self.robot.move_xy(min(self.current_x + 0.2, 1), min(self.current_y + 0.2, 1))
+                    self.robot.move_xy(
+                        min(self.current_x + 0.2, 1), min(self.current_y + 0.2, 1)
+                    )
                     time.sleep(1)
                     self.robot.move_xy(self.current_x, self.current_y)
                     time.sleep(1)
                     self.robot.move_z(0)
                     time.sleep(1)
 
-                elif key.char == 'b':
+                elif key.char == "b":
                     self.state = RobotActivity.FINISHED
-                   
+
             except Exception as e:
                 print(e)
-
 
         def on_release(key):
             if key == keyboard.Key.esc:

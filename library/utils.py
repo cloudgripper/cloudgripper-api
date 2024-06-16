@@ -1,8 +1,9 @@
-import time
 import json
+import os
+import time
 from enum import Enum
 from typing import List, Optional, Tuple
-import os
+
 import numpy as np
 
 from client.cloudgripper_client import GripperRobot
@@ -108,9 +109,9 @@ def execute_order(
             if len(order_value) != 0:
                 robot.move_gripper(order_value[0])
             else:
-                robot.move_gripper(0.55)
-                time.sleep(0.5)
                 robot.move_gripper(0.5)
+                time.sleep(0.5)
+                robot.move_gripper(0.30)
             print("Gripper closed")
 
         print(robot.get_state())
