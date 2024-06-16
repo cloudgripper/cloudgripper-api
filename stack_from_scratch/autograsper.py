@@ -216,8 +216,8 @@ class Autograsper:
         )
 
     def run_grasping(self):
-        #self.manual_control()
-        #return
+        self.manual_control()
+        return
         """
         Run the main grasping loop.
         """
@@ -350,7 +350,7 @@ class Autograsper:
                     self.robot.move_gripper(self.current_angle)
                 elif key.char == 'p':
                     self.current_angle -= 0.01
-                    self.current_angle = max(self.current_angle, 0.4)
+                    self.current_angle = max(self.current_angle, 0.3)
                     print(self.current_angle)
                     self.robot.move_gripper(self.current_angle)
                 elif key.char == 'q':
