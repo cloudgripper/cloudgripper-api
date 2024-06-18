@@ -70,7 +70,7 @@ class Autograsper:
             ]
         )
 
-        self.state = RobotActivity.ACTIVE
+        self.state = RobotActivity.STARTUP
 
         try:
             self.robot = GripperRobot(args.robot_idx, self.token)
@@ -79,8 +79,7 @@ class Autograsper:
 
         self.robot_idx = args.robot_idx
 
-        save_state(self.robot, self.output_dir, self.start_time)  # Save initial state
-
+        
     def pickup_and_place_object(
         self,
         object_position: Tuple[float, float],
@@ -140,20 +139,23 @@ class Autograsper:
 
             order_list = []
 
-            if index == 0:
-                order_list += [
-                    (OrderType.MOVE_Z, [1]),
-                    (OrderType.MOVE_XY, stack_position),
-                    (OrderType.GRIPPER_OPEN, None),
-                ]
+            # this can be enabled if before resetting the gripper moves to a random position, to make the destacking data more general
+            # if index == 0:
+            #     order_list += [
+            #         (OrderType.MOVE_Z, [1]),
+            #         (OrderType.MOVE_XY, stack_position),
+            #         (OrderType.GRIPPER_OPEN, None),
+            #     ]
 
             order_list += [
                 (OrderType.MOVE_Z, [target_z]),
-                (OrderType.GRIPPER_CLOSE, None),
+                (OrderType.GRIPPER_CLOSE, []),
                 (OrderType.MOVE_Z, [1]),
                 (OrderType.MOVE_XY, block_pos),
                 (OrderType.MOVE_Z, [0]),
                 (OrderType.GRIPPER_OPEN, None),
+                (OrderType.MOVE_Z, [1]),
+                (OrderType.MOVE_XY, stack_position),
             ]
 
             queue_orders_with_input(
@@ -192,6 +194,7 @@ class Autograsper:
         ]
 
         queue_orders(self.robot, startup_commands, 1, self.output_dir, self.start_time)
+        time.sleep(1)
 
     def run_calibration(self):
         commands = [
@@ -215,8 +218,9 @@ class Autograsper:
         queue_orders_with_input(self.robot, commands, self.output_dir, self.start_time)
 
     def run_grasping(self):
-        self.manual_control()
-        return
+        #self.manual_control()
+        #return
+
         """
         Run the main grasping loop.
         """
@@ -226,7 +230,7 @@ class Autograsper:
         robot_idx = self.robot_idx
 
         position_bank = generate_position_grid()
-        block_height = 0.4
+        block_height = 0.3
 
         blocks = [
             ("red", block_height),
@@ -243,12 +247,20 @@ class Autograsper:
             return
 
         while self.state is not RobotActivity.FINISHED:
-            self.state = RobotActivity.ACTIVE
 
+            
             try:
+
+                # Reset robot
                 stack_height = 0
                 startup_position = random.choice(position_bank)
                 self.startup(startup_position)
+                # we only want to start recording after this is finished
+
+                # Start main task
+                self.state = RobotActivity.ACTIVE
+
+                save_state(self.robot, self.output_dir, self.start_time)
 
                 for color, block_height in blocks:
                     camera_position = object_tracking(
@@ -271,7 +283,12 @@ class Autograsper:
                 random_reset_positions = pick_random_positions(
                     position_bank, n_layers, 0.2
                 )
+
+                save_state(self.robot, self.output_dir, self.start_time)  # Save initial stat
+
                 self.reset(random_reset_positions, block_heights, time_between_orders=3)
+
+                self.state = RobotActivity.STARTUP
 
                 if not all_objects_are_visible(
                     blocks, get_undistorted_bottom_image(robot, m, d)
@@ -292,7 +309,7 @@ class Autograsper:
         self.current_y = 0.0
         self.current_z = 0.0
         self.current_rotation = 0
-        self.current_angle = 0.5
+        self.current_angle = 0.4
 
         def on_press(key):
             try:
@@ -345,7 +362,7 @@ class Autograsper:
                     self.robot.move_gripper(self.current_angle)
                 elif key.char == "p":
                     self.current_angle -= 0.01
-                    self.current_angle = max(self.current_angle, 0.3)
+                    self.current_angle = max(self.current_angle, 0.2)
                     print(self.current_angle)
                     self.robot.move_gripper(self.current_angle)
                 elif key.char == "q":
