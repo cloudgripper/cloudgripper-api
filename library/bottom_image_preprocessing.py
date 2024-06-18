@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-#rotate all the frame in the video, reverse clock-wise for 90 degree
+# rotate all the frame in the video, reverse clock-wise for 90 degree
 # def rotate(image, angle, center=None, scale=1.0):
 #     (h, w) = image.shape[:2]
 #     if center is None:
@@ -9,6 +9,7 @@ import numpy as np
 #     M = cv2.getRotationMatrix2D(center, angle, scale)
 #     rotated = cv2.warpAffine(image, M, (w,h))
 #     return rotated
+
 
 def rotate(image, angle):
     # grab the dimensions of the image and calculate the center
@@ -32,7 +33,7 @@ def rotate(image, angle):
     # perform the actual rotation and return the image
     return cv2.warpAffine(image, M, (nW, nH))
 
+
 # mirror the image
 def mirror(image):
     return cv2.flip(image, 1)
-    
