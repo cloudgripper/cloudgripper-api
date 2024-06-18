@@ -7,11 +7,11 @@ import numpy as np
 from autograsper import Autograsper, RobotActivity
 from recording import Recorder
 
-prev_robot_activity = RobotActivity.ACTIVE
-curr_robot_activity = RobotActivity.ACTIVE
+prev_robot_activity = RobotActivity.STARTUP
+curr_robot_activity = RobotActivity.STARTUP
 
 state_lock = threading.Lock()
-shared_state = RobotActivity.ACTIVE
+shared_state = RobotActivity.STARTUP
 recorder_thread = None
 recorder = None
 
@@ -114,6 +114,9 @@ if __name__ == "__main__":
         with state_lock:
             if shared_state != prev_robot_activity:
                 print("State change detected:", prev_robot_activity, "->", shared_state)
+
+                if prev_robot_activity is not RobotActivity.STARTUP:
+                    recorder.write_final_image()
 
                 if shared_state == RobotActivity.ACTIVE:
                     # Create a new data point for task
