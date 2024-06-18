@@ -29,6 +29,7 @@ class Recorder:
         self.video_writer_bottom = None
         self.frame_counter = 0
         self.video_counter = 0
+        self.robot = GripperRobot(self.robot_idx, self.token)
 
     def _start_new_video(
         self,
@@ -54,7 +55,6 @@ class Recorder:
         return video_writer_top, video_writer_bottom
 
     def record(self, start_new_video_every=None):
-        robot = GripperRobot(self.robot_idx, self.token)
         self._initialize_directories()
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -64,8 +64,8 @@ class Recorder:
         self.video_writer_bottom = None
 
         while not self.stop_flag:
-            imageTop, timestampTop = robot.getImageTop()
-            bottom_image = get_undistorted_bottom_image(robot, self.m, self.d)
+            imageTop, _ = self.robot.getImageTop()
+            bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
 
             if (
                 start_new_video_every is not None
@@ -98,7 +98,7 @@ class Recorder:
 
                 self.video_counter += 1
 
-            time.sleep(0.01)
+            time.sleep(0.02)  # avoid calling the API too much
 
             self.video_writer_top.write(imageTop)
             self.video_writer_bottom.write(bottom_image)
@@ -116,14 +116,17 @@ class Recorder:
         if self.video_writer_bottom is not None:
             self.video_writer_bottom.release()
 
-        # write the final top image
-        imageTop, timestampTop = robot.getImageTop()
+        cv2.destroyAllWindows()
+
+    def write_final_image(self):
+
+        print("writing final image")
+
+        imageTop, _ = self.robot.getImageTop()
         cv2.imwrite(
             os.path.join(self.final_image_dir, f"final_image_{self.video_counter}.jpg"),
             imageTop,
         )
-
-        cv2.destroyAllWindows()
 
     def _initialize_directories(self):
         self.output_video_dir = os.path.join(self.output_dir, "Video")
