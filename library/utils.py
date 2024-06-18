@@ -136,7 +136,8 @@ def execute_order(
 
             # print("Gripper closed")
 
-        save_state(robot, output_dir, start_time, order)
+        if output_dir != "":
+            save_state(robot, output_dir, start_time, order)
 
     except (IndexError, ValueError) as e:
         print(f"Error executing order {order}: {e}")

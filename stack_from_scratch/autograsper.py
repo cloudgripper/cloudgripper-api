@@ -193,7 +193,7 @@ class Autograsper:
             (OrderType.MOVE_XY, position),
         ]
 
-        queue_orders(self.robot, startup_commands, 1, self.output_dir, self.start_time)
+        queue_orders(self.robot, startup_commands, 1)
         time.sleep(1)
 
     def run_calibration(self):
