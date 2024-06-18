@@ -22,7 +22,6 @@ def object_tracking(image, color="red", size_threshold=150, DEBUG=False):
 
     # to find the bounds of the color, use the hsv_color_picker.py script
 
-
     if color == "red":
         colorFound = True
 
@@ -40,7 +39,6 @@ def object_tracking(image, color="red", size_threshold=150, DEBUG=False):
 
         lower2 = np.array([64, 94, 0])
         upper2 = np.array([84, 114, 0])
-
 
     if color == "orange":
         colorFound = True

@@ -23,7 +23,13 @@ def all_objects_are_visible(blocks, image):
     return True
 
 
-def object_tracking(image, color="red", size_threshold=290, DEBUG=False, debug_image_path="debug_image.png"):
+def object_tracking(
+    image,
+    color="red",
+    size_threshold=290,
+    DEBUG=False,
+    debug_image_path="debug_image.png",
+):
     positions = []
 
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -49,7 +55,6 @@ def object_tracking(image, color="red", size_threshold=290, DEBUG=False, debug_i
         lower2 = np.array([10, 31, 24])
         upper2 = np.array([30, 51, 44])
 
-   
     if color == "orange":
         colorFound = True
 
@@ -70,12 +75,10 @@ def object_tracking(image, color="red", size_threshold=290, DEBUG=False, debug_i
     mask = cv2.bitwise_or(mask1, mask2)
     res = cv2.bitwise_and(image, image, mask=mask)
 
-    contours, hierarchy = cv2.findContours(
-        mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(contours) > 0:
-        large_contours = [
-            c for c in contours if cv2.contourArea(c) > size_threshold]
+        large_contours = [c for c in contours if cv2.contourArea(c) > size_threshold]
         if len(large_contours) > 0:
             c = max(large_contours, key=cv2.contourArea)
             M = cv2.moments(c)
