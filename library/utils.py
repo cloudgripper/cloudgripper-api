@@ -87,7 +87,6 @@ def save_state(
     with open(state_file, "w") as file:
         json.dump(data, file, indent=4)
 
-
 def execute_order(
     robot: GripperRobot,
     order: Tuple[OrderType, List[float]],
@@ -113,25 +112,30 @@ def execute_order(
         if order_type == OrderType.MOVE_XY:
             if reverse_xy:
                 order_value[0] = 1 - order_value[0]
-                # order_value[1] = 1 - order_value[1]
             robot.move_xy(order_value[0], order_value[1])
-            print("Moved XY to", order_value)
+            # print("Moved XY to", order_value)
         elif order_type == OrderType.MOVE_Z:
             robot.move_z(order_value[0])
-            print("Moved Z to", order_value[0])
+            # print("Moved Z to", order_value[0])
         elif order_type == OrderType.GRIPPER_OPEN:
             robot.gripper_open()
-            print("Gripper opened")
+            # print("Gripper opened")
         elif order_type == OrderType.GRIPPER_CLOSE:
             if len(order_value) != 0:
                 robot.move_gripper(order_value[0])
             else:
-                robot.move_gripper(0.5)
-                time.sleep(0.5)
-                robot.move_gripper(0.30)
-            print("Gripper closed")
+                current_position = 0.3
+                end_position = 0.20
+                step = 0.01
+                wait_time = 0.05
 
-        print(robot.get_state())
+                while current_position >= end_position:
+                    robot.move_gripper(current_position)
+                    time.sleep(wait_time)
+                    current_position -= step
+
+            # print("Gripper closed")
+
         save_state(robot, output_dir, start_time, order)
 
     except (IndexError, ValueError) as e:
