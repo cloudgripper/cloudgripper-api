@@ -2,7 +2,7 @@ import json
 import os
 import time
 from enum import Enum
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 
 import numpy as np
 
@@ -16,12 +16,39 @@ class OrderType(Enum):
     GRIPPER_CLOSE = 3
     GRIPPER_OPEN = 4
 
+def convert_ndarray_to_list(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {key: convert_ndarray_to_list(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_ndarray_to_list(item) for item in obj]
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.generic):
+        return obj.item()
+    else:
+        return obj
+
+
+def print_types_in_state(obj: Any, indent: int = 0) -> None:
+    prefix = " " * indent
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            print(f"{prefix}{key}: {type(value).__name__}")
+            print_types_in_state(value, indent + 2)
+    elif isinstance(obj, list):
+        for index, item in enumerate(obj):
+            print(f"{prefix}[{index}]: {type(item).__name__}")
+            print_types_in_state(item, indent + 2)
+    else:
+        print(f"{prefix}{type(obj).__name__}")
+
+
 
 def save_state(
-    robot: GripperRobot,
+    robot: Any,
     output_dir: str,
     start_time: float,
-    previous_order: Optional[Tuple[OrderType, List[float]]] = None,
+    previous_order: Optional[Tuple[Any, List[float]]] = None,
 ):
     """
     Save the current state of the robot to the states.json file.
@@ -31,30 +58,21 @@ def save_state(
     :param start_time: The start time of the autograsper process
     :param previous_order: The previous order executed by the robot
     """
-    return
     state, timestamp = robot.get_state()
+
+    state = convert_ndarray_to_list(state)
+
     relative_time = timestamp - start_time
 
-    # Convert numpy arrays to lists for JSON serialization
-
-    def convert_ndarray(obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if isinstance(obj, dict):
-            return {k: convert_ndarray(v) for k, v in obj.items()}
-        if isinstance(obj, list):
-            return [convert_ndarray(v) for v in obj]
-        return obj
-
-    state = convert_ndarray(state)
-
-    print("saving")
     if previous_order is not None:
         order_type, order_value = previous_order
+        order_value = convert_ndarray_to_list(order_value)  # Ensure order_value is converted
         state["previous_order"] = {
             "order_type": order_type.name,
             "order_value": order_value,
         }
+
+    state["relative_time"] = relative_time  # Adding relative time to the state
 
     state_file = os.path.join(output_dir, "states.json")
 
@@ -64,7 +82,6 @@ def save_state(
     else:
         data = []
 
-    state["relative_time"] = relative_time  # Adding relative time to the state
     data.append(state)
 
     with open(state_file, "w") as file:
