@@ -27,6 +27,7 @@ from library.utils import (
     queue_orders,
     queue_orders_with_input,
     save_state,
+    snowflake_sweep,
     sweep_straight,
 )
 
@@ -87,7 +88,7 @@ class Autograsper:
         object_height: float,
         target_height: float,
         target_position: List[float] = [0.5, 0.5],
-        time_between_orders: int = 2,
+        time_between_orders: int = 3,
     ):
         """
         Pickup and place an object from one position to another.
@@ -112,9 +113,12 @@ class Autograsper:
             (OrderType.GRIPPER_OPEN, []),
         ]
 
-        queue_orders_with_input(
-            self.robot, order_list, self.output_dir, self.start_time
-        )
+        # queue_orders_with_input(
+        #     self.robot, order_list, self.output_dir, self.start_time
+        # )
+
+        queue_orders(self.robot, order_list, time_between_orders, output_dir=self.output_dir, start_time=self.start_time)
+
 
     def reset(
         self,
@@ -145,7 +149,7 @@ class Autograsper:
             #     order_list += [
             #         (OrderType.MOVE_Z, [1]),
             #         (OrderType.MOVE_XY, stack_position),
-            #         (OrderType.GRIPPER_OPEN, None),
+            #         (OrderType.GRIPPER_OPEN, []),
             #     ]
 
             order_list += [
@@ -154,18 +158,20 @@ class Autograsper:
                 (OrderType.MOVE_Z, [1]),
                 (OrderType.MOVE_XY, block_pos),
                 (OrderType.MOVE_Z, [0]),
-                (OrderType.GRIPPER_OPEN, None),
+                (OrderType.GRIPPER_OPEN, []),
             ]
 
             if index != len(rev_heights) - 1:
                 order_list += [
-                    (OrderType.MOVE_Z, [1]),
+                    (OrderType.MOVE_Z, [target_z]),
                     (OrderType.MOVE_XY, stack_position),
                 ]
 
-            queue_orders_with_input(
-                self.robot, order_list, self.output_dir, self.start_time
-            )
+            # queue_orders_with_input(
+            #     self.robot, order_list, self.output_dir, self.start_time
+            # )
+
+            queue_orders(self.robot, order_list, time_between_orders, output_dir=self.output_dir, start_time=self.start_time)
 
     def clear_center(self):
         """
@@ -203,7 +209,7 @@ class Autograsper:
 
     def run_calibration(self):
         commands = [
-            (OrderType.GRIPPER_CLOSE, None),
+            (OrderType.GRIPPER_CLOSE, []),
             (OrderType.MOVE_Z, [1.0]),
             (OrderType.MOVE_XY, [0.0, 0.0]),
             (OrderType.MOVE_Z, [0.3]),
@@ -223,8 +229,6 @@ class Autograsper:
         queue_orders_with_input(self.robot, commands, self.output_dir, self.start_time)
 
     def run_grasping(self):
-        #self.manual_control()
-        #return
 
         """
         Run the main grasping loop.
@@ -263,6 +267,9 @@ class Autograsper:
 
                 # Start main task
                 self.state = RobotActivity.ACTIVE
+
+                #snowflake_sweep(self.robot)
+
                 time.sleep(0.5)
 
                 print("saving initial state to", self.output_dir)
@@ -275,14 +282,19 @@ class Autograsper:
 
                     object_position = cam_to_robot(robot_idx, camera_position)
 
+                    print(color)
+
                     self.pickup_and_place_object(
                         object_position,
                         max(block_height - 0.25, 0.02),  # grip at max grip surface area
                         stack_height,
-                        time_between_orders=1,
+                        time_between_orders=3,
                     )
 
                     stack_height += block_height
+
+                # wait a bit for the final order to complete before changing recording dirs
+                time.sleep(1)
 
                 self.state = RobotActivity.RESETTING
                 time.sleep(0.5)
