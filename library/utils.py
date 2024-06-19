@@ -72,7 +72,7 @@ def save_state(
             "order_value": order_value,
         }
 
-    state["relative_time"] = relative_time  # Adding relative time to the state
+    state["time"] = relative_time  # Adding relative time to the state
 
     state_file = os.path.join(output_dir, "states.json")
 
@@ -109,17 +109,17 @@ def execute_order(
     """
     try:
         order_type, order_value = order
+
+        order_value = np.clip(order_value, 0, 1)
+
         if order_type == OrderType.MOVE_XY:
             if reverse_xy:
                 order_value[0] = 1 - order_value[0]
             robot.move_xy(order_value[0], order_value[1])
-            # print("Moved XY to", order_value)
         elif order_type == OrderType.MOVE_Z:
             robot.move_z(order_value[0])
-            # print("Moved Z to", order_value[0])
         elif order_type == OrderType.GRIPPER_OPEN:
             robot.gripper_open()
-            # print("Gripper opened")
         elif order_type == OrderType.GRIPPER_CLOSE:
             if len(order_value) != 0:
                 robot.move_gripper(order_value[0])
@@ -134,7 +134,7 @@ def execute_order(
                     time.sleep(wait_time)
                     current_position -= step
 
-            # print("Gripper closed")
+            time.sleep(1)  # buffer time
 
         if output_dir != "":
             save_state(robot, output_dir, start_time, order)
@@ -208,17 +208,21 @@ def snowflake_sweep(robot: GripperRobot):
     :param output_dir: Directory to save state data
     :param start_time: The start time of the autograsper process
     """
+
     time_between_orders = 2
     order_list = []
-    for z in range(5, 0, -1):
+
+    for z in range(2, 0, -1):
         height = z * 0.2
+
+        order_list.append((OrderType.GRIPPER_CLOSE, []))
         order_list.append((OrderType.MOVE_Z, [height]))
 
         coordinates = (
-            [(x * 0.1, 0.0) for x in range(0, 10)]
-            + [(1.0, y * 0.1) for y in range(0, 10)]
-            + [(x * 0.1, 1.0) for x in range(10, 0, -1)]
-            + [(0.0, y * 0.1) for y in range(10, 0, -1)]
+            [(x * 0.1, 0.0) for x in range(3, 6)]
+            + [(1.0, y * 0.1) for y in range(3, 6)]
+            + [(x * 0.1, 1.0) for x in range(6, 3, -1)]
+            + [(0.0, y * 0.1) for y in range(6, 3, -1)]
         )
 
         for coord in coordinates:
@@ -273,8 +277,8 @@ def generate_position_grid() -> np.ndarray:
 
     :return: A numpy array of grid positions
     """
-    x = np.arange(0.1, 1, 0.05)
-    y = np.arange(0.1, 1, 0.05)
+    x = np.arange(0.15, 0.85, 0.05)
+    y = np.arange(0.15, 0.85, 0.05)
     position_bank = np.array(np.meshgrid(x, y)).T.reshape(-1, 2)
     return position_bank
 
