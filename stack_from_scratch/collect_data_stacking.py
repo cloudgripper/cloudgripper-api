@@ -95,19 +95,16 @@ if __name__ == "__main__":
         return new_session_dir, task_dir, restore_dir
 
     # Create initial data point with "task" subfolder
-    session_dir, task_dir, restore_dir = create_new_data_point()
-    args = argparse.Namespace(robot_idx=robot_idx, output_dir=task_dir)
-    autograsper = Autograsper(args, task_dir)
+    # session_dir, task_dir, restore_dir = create_new_data_point()
+    args = argparse.Namespace(robot_idx=robot_idx)
+    autograsper = Autograsper(args)
 
-    recorder = setup_recorder(task_dir, robot_idx)
+    recorder = None
 
-    # Run Autograsper and Recorder in parallel
     autograsper_thread = threading.Thread(target=run_autograsper, args=(autograsper,))
-    recorder_thread = threading.Thread(target=run_recorder, args=(recorder,))
     monitor_thread = threading.Thread(target=state_monitor, args=(autograsper,))
 
     autograsper_thread.start()
-    recorder_thread.start()
     monitor_thread.start()
 
     while True:
@@ -122,7 +119,16 @@ if __name__ == "__main__":
                     # Create a new data point for task
                     session_dir, task_dir, restore_dir = create_new_data_point()
                     autograsper.output_dir = task_dir
+
+                    if recorder is None:
+                        # start recording after initial startup
+                        recorder = setup_recorder(task_dir, robot_idx)
+                        recorder_thread = threading.Thread(target=run_recorder, args=(recorder,))
+                        recorder_thread.start()
+
                     recorder.start_new_recording(task_dir)
+
+
                 elif shared_state == RobotActivity.RESETTING:
                     autograsper.output_dir = restore_dir
                     recorder.start_new_recording(restore_dir)

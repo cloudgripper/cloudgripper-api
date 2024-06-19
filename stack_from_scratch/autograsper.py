@@ -1,3 +1,4 @@
+import numpy
 import argparse
 import os
 import random
@@ -40,7 +41,7 @@ class RobotActivity(Enum):
 
 
 class Autograsper:
-    def __init__(self, args, output_dir):
+    def __init__(self, args, output_dir=""):
         """
         Initialize the Autograsper with the provided arguments.
 
@@ -154,9 +155,13 @@ class Autograsper:
                 (OrderType.MOVE_XY, block_pos),
                 (OrderType.MOVE_Z, [0]),
                 (OrderType.GRIPPER_OPEN, None),
-                (OrderType.MOVE_Z, [1]),
-                (OrderType.MOVE_XY, stack_position),
             ]
+
+            if index != len(rev_heights) - 1:
+                order_list += [
+                    (OrderType.MOVE_Z, [1]),
+                    (OrderType.MOVE_XY, stack_position),
+                ]
 
             queue_orders_with_input(
                 self.robot, order_list, self.output_dir, self.start_time
@@ -248,7 +253,6 @@ class Autograsper:
 
         while self.state is not RobotActivity.FINISHED:
 
-            
             try:
 
                 # Reset robot
@@ -259,7 +263,9 @@ class Autograsper:
 
                 # Start main task
                 self.state = RobotActivity.ACTIVE
+                time.sleep(0.5)
 
+                print("saving initial state to", self.output_dir)
                 save_state(self.robot, self.output_dir, self.start_time)
 
                 for color, block_height in blocks:
@@ -279,14 +285,16 @@ class Autograsper:
                     stack_height += block_height
 
                 self.state = RobotActivity.RESETTING
+                time.sleep(0.5)
 
                 random_reset_positions = pick_random_positions(
                     position_bank, n_layers, 0.2
                 )
-
+                
+                print("saving state to", self.output_dir)
                 save_state(self.robot, self.output_dir, self.start_time)  # Save initial stat
 
-                self.reset(random_reset_positions, block_heights, time_between_orders=3)
+                self.reset(random_reset_positions, block_heights, time_between_orders=2)
 
                 self.state = RobotActivity.STARTUP
 
