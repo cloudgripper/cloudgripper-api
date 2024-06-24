@@ -141,7 +141,6 @@ robot_parameters = {
 
 
 def cam_to_robot(robot_idx, camera_coordinates):
-
     def calculate_homography_matrix(pixel_coords, robot_coords):
         """
         Calculate the homography matrix from pixel coordinates to robot coordinates.

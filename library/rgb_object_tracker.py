@@ -40,14 +40,18 @@ def object_tracking(
     if color == "red":
         colorFound = True
 
-        
         # Adjusted color range to include more brownish reds
-        lower1 = np.array([0, 0, 100])  # Higher blue value to start including lighter browns
-        upper1 = np.array([100, 90, 240])  # Increased red and slightly increased green/blue
+        lower1 = np.array(
+            [0, 0, 100]
+        )  # Higher blue value to start including lighter browns
+        upper1 = np.array(
+            [100, 90, 240]
+        )  # Increased red and slightly increased green/blue
 
         lower2 = np.array([160, 0, 0])  # Higher starting red for darker browns
-        upper2 = np.array([230, 110, 100])  # Extended range to include more of the brown spectrum
-
+        upper2 = np.array(
+            [230, 110, 100]
+        )  # Extended range to include more of the brown spectrum
 
     elif color == "green":
         colorFound = True

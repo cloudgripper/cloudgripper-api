@@ -123,11 +123,12 @@ if __name__ == "__main__":
                     if recorder is None:
                         # start recording after initial startup
                         recorder = setup_recorder(task_dir, robot_idx)
-                        recorder_thread = threading.Thread(target=run_recorder, args=(recorder,))
+                        recorder_thread = threading.Thread(
+                            target=run_recorder, args=(recorder,)
+                        )
                         recorder_thread.start()
 
                     recorder.start_new_recording(task_dir)
-
 
                 elif shared_state == RobotActivity.RESETTING:
                     autograsper.output_dir = restore_dir

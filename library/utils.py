@@ -16,6 +16,7 @@ class OrderType(Enum):
     GRIPPER_CLOSE = 3
     GRIPPER_OPEN = 4
 
+
 def convert_ndarray_to_list(obj: Any) -> Any:
     if isinstance(obj, dict):
         return {key: convert_ndarray_to_list(value) for key, value in obj.items()}
@@ -43,7 +44,6 @@ def print_types_in_state(obj: Any, indent: int = 0) -> None:
         print(f"{prefix}{type(obj).__name__}")
 
 
-
 def save_state(
     robot: Any,
     output_dir: str,
@@ -66,7 +66,9 @@ def save_state(
 
     if previous_order is not None:
         order_type, order_value = previous_order
-        order_value = convert_ndarray_to_list(order_value)  # Ensure order_value is converted
+        order_value = convert_ndarray_to_list(
+            order_value
+        )  # Ensure order_value is converted
         state["previous_order"] = {
             "order_type": order_type.name,
             "order_value": order_value,
@@ -86,6 +88,7 @@ def save_state(
 
     with open(state_file, "w") as file:
         json.dump(data, file, indent=4)
+
 
 def execute_order(
     robot: GripperRobot,

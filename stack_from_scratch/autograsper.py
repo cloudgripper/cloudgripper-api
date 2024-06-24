@@ -81,7 +81,6 @@ class Autograsper:
 
         self.robot_idx = args.robot_idx
 
-        
     def pickup_and_place_object(
         self,
         object_position: Tuple[float, float],
@@ -117,8 +116,13 @@ class Autograsper:
         #     self.robot, order_list, self.output_dir, self.start_time
         # )
 
-        queue_orders(self.robot, order_list, time_between_orders, output_dir=self.output_dir, start_time=self.start_time)
-
+        queue_orders(
+            self.robot,
+            order_list,
+            time_between_orders,
+            output_dir=self.output_dir,
+            start_time=self.start_time,
+        )
 
     def reset(
         self,
@@ -171,7 +175,13 @@ class Autograsper:
             #     self.robot, order_list, self.output_dir, self.start_time
             # )
 
-            queue_orders(self.robot, order_list, time_between_orders, output_dir=self.output_dir, start_time=self.start_time)
+            queue_orders(
+                self.robot,
+                order_list,
+                time_between_orders,
+                output_dir=self.output_dir,
+                start_time=self.start_time,
+            )
 
     def clear_center(self):
         """
@@ -200,6 +210,7 @@ class Autograsper:
         self.robot.rotate(0)
         time.sleep(0.5)
         startup_commands = [
+            (OrderType.GRIPPER_OPEN, []),
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, position),
         ]
@@ -229,7 +240,6 @@ class Autograsper:
         queue_orders_with_input(self.robot, commands, self.output_dir, self.start_time)
 
     def run_grasping(self):
-
         """
         Run the main grasping loop.
         """
@@ -241,6 +251,7 @@ class Autograsper:
         position_bank = generate_position_grid()
         block_height = 0.3
 
+        # set up this way to support non uniform block heights
         blocks = [
             ("red", block_height),
             ("green", block_height),
@@ -256,9 +267,7 @@ class Autograsper:
             return
 
         while self.state is not RobotActivity.FINISHED:
-
             try:
-
                 # Reset robot
                 stack_height = 0
                 startup_position = random.choice(position_bank)
@@ -268,8 +277,6 @@ class Autograsper:
                 # Start main task
                 self.state = RobotActivity.ACTIVE
 
-                #snowflake_sweep(self.robot)
-
                 time.sleep(0.5)
 
                 print("saving initial state to", self.output_dir)
@@ -277,7 +284,7 @@ class Autograsper:
 
                 for color, block_height in blocks:
                     camera_position = object_tracking(
-                        get_undistorted_bottom_image(robot, m, d), color, DEBUG=False
+                        get_undistorted_bottom_image(robot, m, d), color, DEBUG=True
                     )
 
                     object_position = cam_to_robot(robot_idx, camera_position)
@@ -288,7 +295,7 @@ class Autograsper:
                         object_position,
                         max(block_height - 0.25, 0.02),  # grip at max grip surface area
                         stack_height,
-                        time_between_orders=3,
+                        time_between_orders=1.5,
                     )
 
                     stack_height += block_height
@@ -302,11 +309,15 @@ class Autograsper:
                 random_reset_positions = pick_random_positions(
                     position_bank, n_layers, 0.2
                 )
-                
-                print("saving state to", self.output_dir)
-                save_state(self.robot, self.output_dir, self.start_time)  # Save initial stat
 
-                self.reset(random_reset_positions, block_heights, time_between_orders=2)
+                print("saving state to", self.output_dir)
+                save_state(
+                    self.robot, self.output_dir, self.start_time
+                )  # Save initial stat
+
+                self.reset(
+                    random_reset_positions, block_heights, time_between_orders=1.5
+                )
 
                 self.state = RobotActivity.STARTUP
 
