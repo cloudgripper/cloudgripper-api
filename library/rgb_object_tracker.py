@@ -40,13 +40,16 @@ def object_tracking(
     if color == "red":
         colorFound = True
 
-        lower1 = np.array([0, 0, 100])
-        upper1 = np.array([100, 100, 255])
+        
+        # Adjusted color range to include more brownish reds
+        lower1 = np.array([0, 0, 100])  # Higher blue value to start including lighter browns
+        upper1 = np.array([100, 90, 240])  # Increased red and slightly increased green/blue
 
-        lower2 = np.array([160, 0, 0])
-        upper2 = np.array([255, 100, 100])
+        lower2 = np.array([160, 0, 0])  # Higher starting red for darker browns
+        upper2 = np.array([230, 110, 100])  # Extended range to include more of the brown spectrum
 
-    if color == "green":
+
+    elif color == "green":
         colorFound = True
 
         lower1 = np.array([9, 22, 15])
@@ -55,7 +58,7 @@ def object_tracking(
         lower2 = np.array([10, 31, 24])
         upper2 = np.array([30, 51, 44])
 
-    if color == "orange":
+    elif color == "orange":
         colorFound = True
 
         # More inclusive ranges for orange
@@ -69,10 +72,19 @@ def object_tracking(
         print("Color not found")
         return None
 
-    mask1 = cv2.inRange(rgb, lower1, upper1)
-    mask2 = cv2.inRange(rgb, lower2, upper2)
+    # Apply Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(rgb, (5, 5), 0)
+
+    mask1 = cv2.inRange(blurred, lower1, upper1)
+    mask2 = cv2.inRange(blurred, lower2, upper2)
 
     mask = cv2.bitwise_or(mask1, mask2)
+
+    # Apply morphological operations to remove small noise
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
     res = cv2.bitwise_and(image, image, mask=mask)
 
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
