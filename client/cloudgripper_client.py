@@ -1,135 +1,284 @@
-from requests import put, get, post, exceptions
+from requests import get, exceptions
 import cv2
 import base64
 import numpy as np
-
-api_address_robots = {
-    f"robot{i}": f"https://cloudgripper.zahidmhd.com/robot{i}/api/v1.1/robot"
-    for i in range(1, 33)
-}
+from typing import Tuple, Optional, Dict, Any
 
 
 class GripperRobot:
-    global api_address_robots
+    """
+    A class to represent a gripper robot and interact with its API.
 
-    def __init__(self, name, token):
+    Attributes:
+        api_address_robots (dict): Dictionary mapping robot names to their API addresses.
+        name (str): The name of the robot.
+        headers (dict): The headers to be sent with each API request.
+        base_api (str): The base API URL for the robot.
+        order_count (int): Counter for the number of orders sent to the robot.
+    """
+
+    api_address_robots = {
+        f"robot{i}": f"https://cloudgripper.zahidmhd.com/robot{i}/api/v1.1/robot"
+        for i in range(1, 33)
+    }
+
+    def __init__(self, name: str, token: str):
+        """
+        Initialize the GripperRobot with a name and API token.
+
+        Args:
+            name (str): The name of the robot.
+            token (str): The API token for authentication.
+        """
         self.name = name
         self.headers = {"apiKey": token}
-        self.base_api = api_address_robots[name]
+        self.base_api = self.api_address_robots[name]
+        self.order_count = 0
 
-    def get_state(self):
+    def _make_request(self, endpoint: str) -> Optional[Dict[str, Any]]:
+        """
+        Make a GET request to the robot's API.
+
+        Args:
+            endpoint (str): The API endpoint to call.
+
+        Returns:
+            Optional[dict]: The JSON response from the API if successful, otherwise None.
+        """
         try:
-            call_api = get(self.base_api + "/getState", headers=self.headers).json()
-            return call_api["state"], call_api["timestamp"]
+            response = get(f"{self.base_api}/{endpoint}", headers=self.headers)
+            response.raise_for_status()
+            return response.json()
         except exceptions.RequestException as e:
-            print("Request failed:", e)
+            print(f"Request to {endpoint} failed:", e)
+            return None
 
-    def step_forward(self):
+    def _safe_get(self, response: Optional[Dict[str, Any]], key: str) -> Optional[Any]:
+        """
+        Safely get a value from the response dictionary.
+
+        Args:
+            response (Optional[dict]): The response dictionary.
+            key (str): The key to retrieve the value for.
+
+        Returns:
+            Optional[Any]: The value if the key exists, otherwise None.
+        """
+        if response and key in response:
+            return response[key]
+        return None
+
+    def get_state(self) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Get the current state of the robot.
+
+        Returns:
+            tuple: The state and timestamp of the robot.
+        """
+        response = self._make_request("getState")
+        return self._safe_get(response, "state"), self._safe_get(response, "timestamp")
+
+    def step_forward(self) -> Optional[str]:
+        """
+        Move the robot one step forward.
+
+        Returns:
+            Optional[str]: The time taken for the step.
+        """
+        response = self._make_request("moveUp")
+        return self._safe_get(response, "time")
+
+    def step_backward(self) -> Optional[str]:
+        """
+        Move the robot one step backward.
+
+        Returns:
+            Optional[str]: The time taken for the step.
+        """
+        response = self._make_request("moveDown")
+        return self._safe_get(response, "time")
+
+    def step_left(self) -> Optional[str]:
+        """
+        Move the robot one step to the left.
+
+        Returns:
+            Optional[str]: The time taken for the step.
+        """
+        response = self._make_request("moveLeft")
+        return self._safe_get(response, "time")
+
+    def step_right(self) -> Optional[str]:
+        """
+        Move the robot one step to the right.
+
+        Returns:
+            Optional[str]: The time taken for the step.
+        """
+        response = self._make_request("moveRight")
+        return self._safe_get(response, "time")
+
+    def move_gripper(self, angle: int) -> Optional[str]:
+        """
+        Move the robot's gripper to a specified angle.
+
+        Args:
+            angle (int): The angle to move the gripper to.
+
+        Returns:
+            Optional[str]: The time taken for the movement.
+        """
+        response = self._make_request(f"grip/{angle}")
+        return self._safe_get(response, "time")
+
+    def gripper_close(self) -> Optional[str]:
+        """
+        Close the robot's gripper.
+
+        Returns:
+            Optional[str]: The time taken for the movement.
+        """
+        return self.move_gripper(0)
+
+    def gripper_open(self) -> Optional[str]:
+        """
+        Open the robot's gripper.
+
+        Returns:
+            Optional[str]: The time taken for the movement.
+        """
+        return self.move_gripper(1)
+
+    def rotate(self, angle: int) -> Optional[str]:
+        """
+        Rotate the robot to a specified angle.
+
+        Args:
+            angle (int): The angle to rotate the robot to.
+
+        Returns:
+            Optional[str]: The time taken for the rotation.
+        """
+        response = self._make_request(f"rotate/{angle}")
+        return self._safe_get(response, "time")
+
+    def move_z(self, z: int) -> Optional[str]:
+        """
+        Move the robot along the Z-axis.
+
+        Args:
+            z (int): The distance to move along the Z-axis.
+
+        Returns:
+            Optional[str]: The time taken for the movement.
+        """
+        response = self._make_request(f"up_down/{z}")
+        return self._safe_get(response, "time")
+
+    def move_xy(self, x: int, y: int) -> Optional[str]:
+        """
+        Move the robot along the X and Y axes.
+
+        Args:
+            x (int): The distance to move along the X-axis.
+            y (int): The distance to move along the Y-axis.
+
+        Returns:
+            Optional[str]: The time taken for the movement.
+        """
+        response = self._make_request(f"gcode/{x}/{y}")
+        return self._safe_get(response, "time")
+
+    def calibrate(self) -> None:
+        """
+        Calibrate the robot.
+        """
+        self._make_request("calibrate")
+
+    def _decode_image(self, image_str: str) -> Optional[np.ndarray]:
+        """
+        Decode a base64-encoded image string into a numpy array.
+
+        Args:
+            image_str (str): The base64-encoded image string.
+
+        Returns:
+            Optional[np.ndarray]: The decoded image as a numpy array.
+        """
         try:
-            call_api = get(self.base_api + "/moveUp", headers=self.headers).json()
-            return call_api["time"]
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+            img_bytes = base64.b64decode(image_str.encode("latin1"))
+            np_img = np.frombuffer(img_bytes, dtype=np.uint8)
+            image = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+            return image
+        except Exception as e:
+            print(f"Image decoding failed: {e}")
+            return None
 
-    def step_backward(self):
-        try:
-            call_api = get(self.base_api + "/moveDown", headers=self.headers).json()
-            return call_api["time"]
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+    def _get_image(self, endpoint: str) -> Tuple[Optional[np.ndarray], Optional[str]]:
+        """
+        Retrieve an image from the robot's camera.
 
-    def step_left(self):
-        try:
-            call_api = get(self.base_api + "/moveLeft", headers=self.headers).json()
-            return call_api["time"]
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+        Args:
+            endpoint (str): The API endpoint to call for the image.
 
-    def step_right(self):
-        try:
-            call_api = get(self.base_api + "/moveRight", headers=self.headers).json()
-            return call_api["time"]
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+        Returns:
+            Tuple[Optional[np.ndarray], Optional[str]]: The image as a numpy array and the timestamp.
+        """
+        response = self._make_request(endpoint)
+        image_data = self._safe_get(response, "data")
+        time_stamp = self._safe_get(response, "time")
 
-    def move_gripper(self, angle):
-        self.gripperAngle = angle
-        try:
-            call_api = get(
-                self.base_api + "/grip/" + str(self.gripperAngle), headers=self.headers
-            ).json()
-            return call_api["time"]
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+        if image_data:
+            image = self._decode_image(image_data)
+            return image, time_stamp
 
-    def gripper_close(self):
-        time_stamp = self.move_gripper(0)
-        return time_stamp
+        print("Image not available")
+        return None, None
 
-    def gripper_open(self):
-        time_stamp = self.move_gripper(1)
-        return time_stamp
+    def get_image_base(self) -> Tuple[Optional[np.ndarray], Optional[str]]:
+        """
+        Get the base image from the robot's camera.
 
-    def rotate(self, angle):
-        self.rotationAngle = angle
-        try:
-            call_api = get(
-                self.base_api + "/rotate/" + str(angle), headers=self.headers
-            ).json()
-            return call_api["time"]
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+        Returns:
+            Tuple[Optional[np.ndarray], Optional[str]]: The image as a numpy array and the timestamp.
+        """
+        return self._get_image("getImageBase")
 
-    def move_z(self, z):
-        self.zaxisAngle = z
-        try:
-            call_api = get(
-                self.base_api + "/up_down/" + str(z), headers=self.headers
-            ).json()
-            return call_api["time"]
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+    def get_image_top(self) -> Tuple[Optional[np.ndarray], Optional[str]]:
+        """
+        Get the top image from the robot's camera.
 
-    def move_xy(self, x, y):
-        self.robotPositionX = x
-        self.robotPositionY = y
-        try:
-            call_api = get(
-                self.base_api + "/gcode/" + str(x) + "/" + str(y), headers=self.headers
-            ).json()
-            # print(call_api)
-            return call_api["time"]
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+        Returns:
+            Tuple[Optional[np.ndarray], Optional[str]]: The image as a numpy array and the timestamp.
+        """
+        return self._get_image("getImageTop")
 
-    def calibrate(self):
-        try:
-            get(self.base_api + "/calibrate", headers=self.headers).json()
-        except exceptions.RequestException as e:
-            print("Request failed:", e)
+    def get_all_states(
+        self,
+    ) -> Tuple[
+        Optional[np.ndarray],
+        Optional[str],
+        Optional[np.ndarray],
+        Optional[str],
+        Optional[str],
+        Optional[str],
+    ]:
+        """
+        Get the combined state and images from the robot.
 
-    def getImageBase(self):
-        try:
-            call_api = get(self.base_api + "/getImageBase", headers=self.headers).json()
-            getimage = call_api["data"]
-            time_stamp = call_api["time"]
-            encode_img = getimage.encode("latin1")
-            img = base64.b64decode(encode_img)
-            npimg = np.fromstring(img, dtype=np.uint8)
-            source = cv2.imdecode(npimg, 1)
-            return source, time_stamp
-        except:
-            print("Image not available")
+        Returns:
+            Tuple[Optional[np.ndarray], Optional[str], Optional[np.ndarray], Optional[str], Optional[str], Optional[str]]:
+                The top image, top image timestamp, base image, base image timestamp, robot state, and state timestamp.
+        """
+        response = self._make_request("getAllStates")
+        if response is None:
+            return None, None, None, None, None, None
 
-    def getImageTop(self):
-        try:
-            call_api = get(self.base_api + "/getImageTop", headers=self.headers).json()
-            getimage = call_api["data"]
-            time_stamp = call_api["time"]
-            encode_img = getimage.encode("latin1")
-            img = base64.b64decode(encode_img)
-            npimg = np.fromstring(img, dtype=np.uint8)
-            source = cv2.imdecode(npimg, 1)
-            return source, time_stamp
-        except:
-            print("Image not available")
+        image_top = self._decode_image(self._safe_get(response, "data_top_camera"))
+        time_top = self._safe_get(response, "time_top_camera")
+        image_base = self._decode_image(self._safe_get(response, "data_base_camera"))
+        time_base = self._safe_get(response, "time_base_camera")
+        state = self._safe_get(response, "state")
+        time_state = self._safe_get(response, "time_state")
+
+        return image_top, time_top, image_base, time_base, state, time_state
