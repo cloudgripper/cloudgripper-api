@@ -12,6 +12,7 @@ if project_root not in sys.path:
 from client.cloudgripper_client import GripperRobot
 from library.utils import convert_ndarray_to_list, get_undistorted_bottom_image
 
+
 class Recorder:
     FPS = 3
     FOURCC = cv2.VideoWriter_fourcc(*"mp4v")
@@ -100,16 +101,16 @@ class Recorder:
         try:
             image_top, _ = self.robot.get_image_top()
             bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
-            
+
             if self.video_writer_top and self.video_writer_bottom:
                 self.video_writer_top.write(image_top)
                 self.video_writer_bottom.write(bottom_image)
             else:
                 print("Video writers not initialized.")
-                
+
             self.image_top = image_top
             self.bottom_image = bottom_image
-            
+
         except Exception as e:
             print(f"Error capturing frame: {e}")
 

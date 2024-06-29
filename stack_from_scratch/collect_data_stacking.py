@@ -23,6 +23,7 @@ error_event = threading.Event()
 # Lock for bottom_image synchronization
 bottom_image_lock = threading.Lock()
 
+
 def get_new_session_id(base_dir):
     max_id = 0
     if os.path.exists(base_dir):
@@ -33,11 +34,13 @@ def get_new_session_id(base_dir):
                     max_id = session_id
     return max_id + 1
 
+
 def run_autograsper(autograsper):
     try:
         autograsper.run_grasping()
     except Exception as e:
         handle_error(e)
+
 
 def setup_recorder(output_dir, robot_idx):
     session_id = "test"
@@ -65,11 +68,13 @@ def setup_recorder(output_dir, robot_idx):
 
     return Recorder(session_id, output_dir, m, d, token, robot_idx)
 
+
 def run_recorder(recorder):
     try:
         recorder.record()
     except Exception as e:
         handle_error(e)
+
 
 def state_monitor(autograsper):
     global shared_state
@@ -84,14 +89,17 @@ def state_monitor(autograsper):
     except Exception as e:
         handle_error(e)
 
+
 def check_stacking_success():
     colors = ["red", "green"]
     return not all_objects_are_visible(colors, recorder.bottom_image, DEBUG=True)
+
 
 def handle_error(e):
     print(f"Error occurred: {e}")
     print(traceback.format_exc())
     error_event.set()  # Signal that an error has occurred
+
 
 def bottom_image_monitor(recorder, autograsper):
     try:
@@ -102,6 +110,7 @@ def bottom_image_monitor(recorder, autograsper):
             time.sleep(0.1)
     except Exception as e:
         handle_error(e)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot Controller")
@@ -152,7 +161,8 @@ if __name__ == "__main__":
                             )
                             recorder_thread.start()
                             bottom_image_thread = threading.Thread(
-                                target=bottom_image_monitor, args=(recorder, autograsper)
+                                target=bottom_image_monitor,
+                                args=(recorder, autograsper),
                             )
                             bottom_image_thread.start()
 
@@ -193,4 +203,3 @@ if __name__ == "__main__":
         monitor_thread.join()
         if recorder_thread and recorder_thread.is_alive():
             recorder_thread.join()
-
