@@ -214,7 +214,9 @@ class GripperRobot:
             print(f"Image decoding failed: {e}")
             return None
 
-    def _get_image(self, endpoint: str) -> Tuple[Optional[np.ndarray], Optional[str]]:
+    def _get_image(
+        self, endpoint: str
+    ) -> Tuple[Optional[np.ndarray], Optional[str], Optional[str]]:
         """
         Retrieve an image from the robot's camera.
 
@@ -222,7 +224,7 @@ class GripperRobot:
             endpoint (str): The API endpoint to call for the image.
 
         Returns:
-            Tuple[Optional[np.ndarray], Optional[str]]: The image as a numpy array and the timestamp.
+            Tuple[Optional[np.ndarray], Optional[str], Optional[str]]: The image as a numpy array, the timestamp, and the raw base64 image data.
         """
         response = self._make_request(endpoint)
         image_data = self._safe_get(response, "data")
@@ -230,19 +232,30 @@ class GripperRobot:
 
         if image_data:
             image = self._decode_image(image_data)
-            return image, time_stamp
+            return image, time_stamp, image_data
+        else:
+            print("Image not available")
+            return None, None, None
 
-        print("Image not available")
-        return None, None
-
-    def get_image_base(self) -> Tuple[Optional[np.ndarray], Optional[str]]:
+    def get_image_base(
+        self,
+    ) -> Tuple[Optional[np.ndarray], Optional[str], Optional[str]]:
         """
         Get the base image from the robot's camera.
 
         Returns:
-            Tuple[Optional[np.ndarray], Optional[str]]: The image as a numpy array and the timestamp.
+            Tuple[Optional[np.ndarray], Optional[str], Optional[str]]: The image as a numpy array, the timestamp, and the raw base64 image data.
         """
-        return self._get_image("getImageBase")
+        image, time_stamp, image_data = self._get_image("getImageBase")
+
+        # self.get_all_states()
+
+        # Write the raw base64 data to a file
+        # if image_data:
+        #     with open("get_base_image_base64.txt", "w") as f:
+        #         f.write(image_data)
+
+        return image, time_stamp, image_data
 
     def get_image_top(self) -> Tuple[Optional[np.ndarray], Optional[str]]:
         """
@@ -251,7 +264,12 @@ class GripperRobot:
         Returns:
             Tuple[Optional[np.ndarray], Optional[str]]: The image as a numpy array and the timestamp.
         """
-        return self._get_image("getImageTop")
+        img = self._get_image("getImageTop")
+
+        with open("get_base_image_base64.txt", "w") as f:
+            f.write(img[2])
+
+        return img[0], img[1]
 
     def get_all_states(
         self,
@@ -274,11 +292,21 @@ class GripperRobot:
         if response is None:
             return None, None, None, None, None, None
 
-        image_top = self._decode_image(self._safe_get(response, "data_top_camera"))
+        image_top_data = self._safe_get(response, "data_top_camera")
         time_top = self._safe_get(response, "time_top_camera")
-        image_base = self._decode_image(self._safe_get(response, "data_base_camera"))
+        image_top = self._decode_image(image_top_data)
+
+        image_base_data = self._safe_get(response, "data_base_camera")
         time_base = self._safe_get(response, "time_base_camera")
+        image_base = self._decode_image(image_base_data)
+
         state = self._safe_get(response, "state")
         time_state = self._safe_get(response, "time_state")
+
+        # Write the raw base64 data to files
+        # if image_base_data:
+        #     print("image base data type", type(image_base_data))
+        #     with open("all_base_image_base64.txt", "w") as f:
+        #         f.write(image_base_data)
 
         return image_top, time_top, image_base, time_base, state, time_state
