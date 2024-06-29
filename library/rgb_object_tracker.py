@@ -10,16 +10,15 @@ def test_calibration(image, colors):
         object_tracking(image, color, DEBUG=True, debug_image_path=f"debug_{color}.png")
 
 
-def all_objects_are_visible(blocks, image):
-    for block in blocks:
+def all_objects_are_visible(objects, image, DEBUG=False):
+    for obj in objects:
         try:
-            if object_tracking(image, block[0]) is None:
-                cv2.imshow("debug", image)
-                print("block not found", block)
+            if object_tracking(image, obj, DEBUG=DEBUG) is None:
+                print("block not found", obj)
                 return False
         except Exception as e:  # TODO make custom exceptions
             print(e)
-            print(block)
+            print(obj)
             return False
     return True
 
@@ -66,7 +65,7 @@ def object_tracking(
         return None
 
     # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(hsv, (15, 15), 0)
+    blurred = cv2.GaussianBlur(hsv, (5, 5), 0)
 
     mask1 = cv2.inRange(blurred, lower1, upper1)
     if color == "red":
@@ -76,7 +75,7 @@ def object_tracking(
         mask = mask1
 
     # Apply morphological operations to remove small noise
-    kernel = np.ones((9, 9), np.uint8)
+    kernel = np.ones((7, 7), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
@@ -101,17 +100,16 @@ def object_tracking(
         cy = int(M["m01"] / M["m00"])
         positions.append(np.array([cx, cy]))
 
-
         contour_area = cv2.contourArea(c)
         if DEBUG:
-            print("largest contour:", contour_area)
+            print("largest contour for color:", color, contour_area)
 
-        if contour_area < 8000:
-            print("No large contours found")
+        if contour_area < 1000:
+            print("No sufficiently large contours found")
             return None
 
     else:
-        print("No large contours found")
+        print("No large contours found of color", color)
         return None
 
     if DEBUG:
