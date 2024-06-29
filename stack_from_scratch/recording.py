@@ -3,7 +3,7 @@ import os
 import sys
 import time
 import json
-from typing import Any
+from typing import Any, List
 
 import cv2
 from filelock import FileLock
@@ -36,6 +36,10 @@ class Recorder:
         self.fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         self.image_top, _ = self.robot.get_image_top()
         self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+        self.fps = 3
+
+        self.frame_buffer_top = []
+        self.frame_buffer_bottom = []
 
     def _start_new_video(
         self,
@@ -49,13 +53,13 @@ class Recorder:
         video_filename_top = os.path.join(
             output_video_dir, f"video_{video_counter}.mp4"
         )
-        video_writer_top = cv2.VideoWriter(video_filename_top, fourcc, 3.0, image_shape)
+        video_writer_top = cv2.VideoWriter(video_filename_top, fourcc, self.fps, image_shape)
 
         video_filename_bottom = os.path.join(
             output_bottom_video_dir, f"video_{video_counter}.mp4"
         )
         video_writer_bottom = cv2.VideoWriter(
-            video_filename_bottom, fourcc, 3.0, bottom_image_shape
+            video_filename_bottom, fourcc, self.fps, bottom_image_shape
         )
 
         return video_writer_top, video_writer_bottom
@@ -75,21 +79,20 @@ class Recorder:
                 self.bottom_image = bottom_image
                 self.image_top = imageTop
 
-
                 if (
                     start_new_video_every is not None
                     and self.frame_counter % start_new_video_every == 0
                 ):
-                    self._start_or_restart_video_writers(self.fourcc, imageTop, bottom_image)
+                    self._start_or_restart_video_writers(imageTop, bottom_image)
                 elif start_new_video_every is None and self.frame_counter == 0:
-                    self._start_or_restart_video_writers(self.fourcc, imageTop, bottom_image)
+                    self._start_or_restart_video_writers(imageTop, bottom_image)
 
                 time.sleep(0.5)  # avoid calling the API too much
 
                 # Check if the frames are valid
                 if imageTop is not None and bottom_image is not None:
-                    self.video_writer_top.write(imageTop)
-                    self.video_writer_bottom.write(bottom_image)
+                    self.frame_buffer_top.append(imageTop)
+                    self.frame_buffer_bottom.append(bottom_image)
 
                 self.save_state(self.robot)
 
@@ -103,25 +106,32 @@ class Recorder:
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
+            self._write_frames_to_video()
             self.release_writers()
             cv2.destroyAllWindows()
 
-    def _start_or_restart_video_writers(self, fourcc, imageTop, bottom_image):
-        if self.video_writer_top is not None:
-            self.video_writer_top.release()
-        if self.video_writer_bottom is not None:
-            self.video_writer_bottom.release()
+    def _start_or_restart_video_writers(self, imageTop, bottom_image):
+        self._write_frames_to_video()
 
         self.video_writer_top, self.video_writer_bottom = self._start_new_video(
             self.output_video_dir,
             self.output_bottom_video_dir,
             self.video_counter,
-            fourcc,
+            self.fourcc,
             (imageTop.shape[1], imageTop.shape[0]),
             (bottom_image.shape[1], bottom_image.shape[0]),
         )
 
         self.video_counter += 1
+
+    def _write_frames_to_video(self):
+        if self.video_writer_top is not None and self.video_writer_bottom is not None:
+            if len(self.frame_buffer_top) > 0 and len(self.frame_buffer_bottom) > 0:
+                for frame_top, frame_bottom in zip(self.frame_buffer_top, self.frame_buffer_bottom):
+                    self.video_writer_top.write(frame_top)
+                    self.video_writer_bottom.write(frame_bottom)
+                self.frame_buffer_top = []
+                self.frame_buffer_bottom = []
 
     def release_writers(self):
         if self.video_writer_top is not None:
@@ -149,11 +159,11 @@ class Recorder:
 
     def start_new_recording(self, new_output_dir):
         self.output_dir = new_output_dir
-        self._initialize_directories()
-        self._start_or_restart_video_writers(self.fourcc, self.image_top, self.bottom_image)
         self.frame_counter = 0
         self.video_counter = 0
         self.stop_flag = False
+        self._initialize_directories()
+        self._start_or_restart_video_writers(self.image_top, self.bottom_image)
         print(f"Started new recording in directory: {new_output_dir}")
 
     def stop(self):
@@ -226,4 +236,3 @@ if __name__ == "__main__":
     output_dir = prefix
     recorder = Recorder("test", output_dir, m, d, token, idx)
     recorder.record(start_new_video_every=30)
-
