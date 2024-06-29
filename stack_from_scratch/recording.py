@@ -7,6 +7,7 @@ from typing import Any, List
 
 import cv2
 from filelock import FileLock
+import numpy as np
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
@@ -87,7 +88,7 @@ class Recorder:
                 elif start_new_video_every is None and self.frame_counter == 0:
                     self._start_or_restart_video_writers(imageTop, bottom_image)
 
-                time.sleep(0.5)  # avoid calling the API too much
+                time.sleep(1 / self.fps)  # maintain the desired FPS
 
                 # Check if the frames are valid
                 if imageTop is not None and bottom_image is not None:
@@ -236,3 +237,4 @@ if __name__ == "__main__":
     output_dir = prefix
     recorder = Recorder("test", output_dir, m, d, token, idx)
     recorder.record(start_new_video_every=30)
+
