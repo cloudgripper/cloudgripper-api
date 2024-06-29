@@ -2,10 +2,12 @@ import argparse
 import os
 import threading
 import time
+import traceback
 
 import numpy as np
 from autograsper import Autograsper, RobotActivity
 from recording import Recorder
+from library.rgb_object_tracker import all_objects_are_visible
 
 prev_robot_activity = RobotActivity.STARTUP
 curr_robot_activity = RobotActivity.STARTUP
@@ -15,6 +17,8 @@ shared_state = RobotActivity.STARTUP
 recorder_thread = None
 recorder = None
 
+# Event to signal error
+error_event = threading.Event()
 
 def get_new_session_id(base_dir):
     max_id = 0
@@ -26,10 +30,11 @@ def get_new_session_id(base_dir):
                     max_id = session_id
     return max_id + 1
 
-
 def run_autograsper(autograsper):
-    autograsper.run_grasping()
-
+    try:
+        autograsper.run_grasping()
+    except Exception as e:
+        handle_error(e)
 
 def setup_recorder(output_dir, robot_idx):
     session_id = "test"
@@ -57,21 +62,33 @@ def setup_recorder(output_dir, robot_idx):
 
     return Recorder(session_id, output_dir, m, d, token, robot_idx)
 
-
 def run_recorder(recorder):
-    recorder.record(start_new_video_every=30)
-
+    try:
+        recorder.record()
+    except Exception as e:
+        handle_error(e)
 
 def state_monitor(autograsper):
     global shared_state
-    while True:
-        with state_lock:
-            if shared_state != autograsper.state:
-                shared_state = autograsper.state
-                if shared_state == RobotActivity.FINISHED:
-                    break
-        time.sleep(0.1)
+    try:
+        while not error_event.is_set():
+            with state_lock:
+                if shared_state != autograsper.state:
+                    shared_state = autograsper.state
+                    if shared_state == RobotActivity.FINISHED:
+                        break
+            time.sleep(0.1)
+    except Exception as e:
+        handle_error(e)
 
+def check_stacking_success():
+    colors = ["red", "green"]
+    return not all_objects_are_visible(colors, recorder.bottom_image, DEBUG=True)
+
+def handle_error(e):
+    print(f"Error occurred: {e}")
+    print(traceback.format_exc())
+    error_event.set()  # Signal that an error has occurred
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot Controller")
@@ -94,12 +111,7 @@ if __name__ == "__main__":
 
         return new_session_dir, task_dir, restore_dir
 
-    # Create initial data point with "task" subfolder
-    # session_dir, task_dir, restore_dir = create_new_data_point()
-    args = argparse.Namespace(robot_idx=robot_idx)
     autograsper = Autograsper(args)
-
-    recorder = None
 
     autograsper_thread = threading.Thread(target=run_autograsper, args=(autograsper,))
     monitor_thread = threading.Thread(target=state_monitor, args=(autograsper,))
@@ -107,43 +119,56 @@ if __name__ == "__main__":
     autograsper_thread.start()
     monitor_thread.start()
 
-    while True:
-        with state_lock:
-            if shared_state != prev_robot_activity:
-                print("State change detected:", prev_robot_activity, "->", shared_state)
+    try:
+        while not error_event.is_set():
+            with state_lock:
+                if shared_state != prev_robot_activity:
+                    print("State change:", prev_robot_activity, "->", shared_state)
 
-                if prev_robot_activity is not RobotActivity.STARTUP:
-                    recorder.write_final_image()
+                    if prev_robot_activity is not RobotActivity.STARTUP:
+                        recorder.write_final_image()
 
-                if shared_state == RobotActivity.ACTIVE:
-                    # Create a new data point for task
-                    session_dir, task_dir, restore_dir = create_new_data_point()
-                    autograsper.output_dir = task_dir
+                    if shared_state == RobotActivity.ACTIVE:
+                        session_dir, task_dir, restore_dir = create_new_data_point()
+                        autograsper.output_dir = task_dir
 
-                    if recorder is None:
-                        # start recording after initial startup
-                        recorder = setup_recorder(task_dir, robot_idx)
-                        recorder_thread = threading.Thread(
-                            target=run_recorder, args=(recorder,)
-                        )
-                        recorder_thread.start()
+                        if recorder is None:
+                            recorder = setup_recorder(task_dir, robot_idx)
+                            recorder_thread = threading.Thread(
+                                target=run_recorder, args=(recorder,)
+                            )
+                            recorder_thread.start()
 
-                    recorder.start_new_recording(task_dir)
+                        recorder.start_new_recording(task_dir)
 
-                elif shared_state == RobotActivity.RESETTING:
-                    autograsper.output_dir = restore_dir
-                    recorder.start_new_recording(restore_dir)
+                    elif shared_state == RobotActivity.RESETTING:
+                        if not check_stacking_success():
+                            with open(session_dir + "/status.txt", "w") as file:
+                                file.write("stacking failed")
+                            print("stacking failed")
+                        else:
+                            print("stacking succeeded")
 
-                prev_robot_activity = shared_state
+                        autograsper.output_dir = restore_dir
+                        recorder.start_new_recording(restore_dir)
 
-            if shared_state == RobotActivity.FINISHED:
-                if recorder is not None:
-                    recorder.stop()  # Ensure recorder is stopped when finished
-                    time.sleep(1)
-                    recorder_thread.join()  # Ensure the recorder thread has finished
-                break
+                    prev_robot_activity = shared_state
 
-    print("Final robot activity:", prev_robot_activity)
+                if shared_state == RobotActivity.FINISHED:
+                    if recorder is not None:
+                        recorder.stop()
+                        time.sleep(1)
+                        recorder_thread.join()
+                    break
 
-    autograsper_thread.join()
-    monitor_thread.join()
+        print("Final robot activity:", prev_robot_activity)
+
+    except Exception as e:
+        handle_error(e)
+
+    finally:
+        error_event.set()  # Ensure all threads are signaled to stop
+        autograsper_thread.join()
+        monitor_thread.join()
+        if recorder_thread and recorder_thread.is_alive():
+            recorder_thread.join()
