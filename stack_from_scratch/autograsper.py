@@ -26,7 +26,6 @@ from library.utils import (
     pick_random_positions,
     queue_orders,
     queue_orders_with_input,
-    save_state,
     snowflake_sweep,
     sweep_straight,
 )
@@ -55,6 +54,7 @@ class Autograsper:
 
         self.output_dir = output_dir
         self.start_time = time.time()
+        self.failed = False
 
         self.m = np.array(
             [
@@ -81,6 +81,8 @@ class Autograsper:
 
         self.robot_idx = args.robot_idx
 
+        self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+
     def pickup_and_place_object(
         self,
         object_position: Tuple[float, float],
@@ -98,11 +100,10 @@ class Autograsper:
         :param target_position: Target position for placing the object
         :param time_between_orders: Time to wait between orders
         """
-        movement = object_position
 
         order_list = [
             (OrderType.MOVE_Z, [1]),
-            (OrderType.MOVE_XY, movement),
+            (OrderType.MOVE_XY, object_position),
             (OrderType.GRIPPER_OPEN, []),
             (OrderType.MOVE_Z, [object_height]),
             (OrderType.GRIPPER_CLOSE, []),
@@ -112,16 +113,11 @@ class Autograsper:
             (OrderType.GRIPPER_OPEN, []),
         ]
 
-        # queue_orders_with_input(
-        #     self.robot, order_list, self.output_dir, self.start_time
-        # )
-
         queue_orders(
             self.robot,
             order_list,
             time_between_orders,
             output_dir=self.output_dir,
-            start_time=self.start_time,
         )
 
     def reset(
@@ -131,6 +127,7 @@ class Autograsper:
         stack_position: List[float] = [0.5, 0.5],
         time_between_orders: int = 2,
     ):
+        # TODO add going to corner if finished
         """
         Reset the blocks to their initial positions.
 
@@ -149,12 +146,12 @@ class Autograsper:
             order_list = []
 
             # this can be enabled if before resetting the gripper moves to a random position, to make the destacking data more general
-            # if index == 0:
-            #     order_list += [
-            #         (OrderType.MOVE_Z, [1]),
-            #         (OrderType.MOVE_XY, stack_position),
-            #         (OrderType.GRIPPER_OPEN, []),
-            #     ]
+            if index == 0:
+                order_list += [
+                    (OrderType.MOVE_Z, [1]),
+                    (OrderType.MOVE_XY, stack_position),
+                    (OrderType.GRIPPER_OPEN, []),
+                ]
 
             order_list += [
                 (OrderType.MOVE_Z, [target_z]),
@@ -171,35 +168,41 @@ class Autograsper:
                     (OrderType.MOVE_XY, stack_position),
                 ]
 
-            # queue_orders_with_input(
-            #     self.robot, order_list, self.output_dir, self.start_time
-            # )
-
             queue_orders(
                 self.robot,
                 order_list,
                 time_between_orders,
                 output_dir=self.output_dir,
-                start_time=self.start_time,
             )
 
     def clear_center(self):
         """
         Clear the center area of the workspace.
         """
+        print("clearing center")
         commands = [
             (OrderType.MOVE_Z, [1]),
+            (OrderType.GRIPPER_CLOSE, []),
             (OrderType.MOVE_XY, [0.3, 0.3]),
-            (OrderType.MOVE_Z, [0.2]),
-            (OrderType.MOVE_XY, [0.3, 0.8]),
-            (OrderType.MOVE_XY, [0.5, 0.8]),
-            (OrderType.MOVE_XY, [0.5, 0.4]),
-            (OrderType.MOVE_XY, [0.7, 0.4]),
-            (OrderType.MOVE_XY, [0.7, 0.8]),
+            (OrderType.MOVE_Z, [0.4]),
+            (OrderType.MOVE_XY, [0.5, 0.3]),
+            (OrderType.MOVE_XY, [0.5, 0.7]),
+            (OrderType.MOVE_XY, [0.3, 0.7]),
+            (OrderType.MOVE_Z, [0.1]),
+            (OrderType.MOVE_XY, [0.3, 0.5]),
+            (OrderType.MOVE_XY, [0.7, 0.5]),
+            (OrderType.MOVE_XY, [0.3, 0.3]),
+            (OrderType.MOVE_XY, [0.5, 0.5]),
+            (OrderType.MOVE_XY, [0.7, 0.7]),
+            (OrderType.MOVE_XY, [0.7, 0.5]),
+            (OrderType.MOVE_XY, [0.7, 0.3]),
+            (OrderType.MOVE_XY, [0.5, 0.5]),
+            (OrderType.MOVE_XY, [0.3, 0.7]),
             (OrderType.MOVE_Z, [1]),
         ]
 
-        queue_orders(self.robot, commands, 2, self.output_dir, self.start_time)
+        queue_orders(self.robot, commands, 1)
+        print("clearing center complete")
 
     def startup(self, position: List[float]):
         """
@@ -218,26 +221,30 @@ class Autograsper:
         queue_orders(self.robot, startup_commands, 1)
         time.sleep(1)
 
-    def run_calibration(self):
+    def run_calibration(self, height):
         commands = [
             (OrderType.GRIPPER_CLOSE, []),
             (OrderType.MOVE_Z, [1.0]),
             (OrderType.MOVE_XY, [0.0, 0.0]),
-            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.MOVE_Z, [height]),
             (OrderType.MOVE_Z, [1.0]),
             (OrderType.MOVE_XY, [1.0, 0.0]),
-            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.MOVE_Z, [height]),
             (OrderType.MOVE_Z, [1.0]),
             (OrderType.MOVE_XY, [0.0, 1.0]),
-            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.MOVE_Z, [height]),
             (OrderType.MOVE_Z, [1.0]),
             (OrderType.MOVE_XY, [1.0, 1.0]),
-            (OrderType.MOVE_Z, [0.3]),
+            (OrderType.MOVE_Z, [height]),
             (OrderType.MOVE_Z, [1.0]),
             (OrderType.MOVE_XY, [1.0, 1.0]),
         ]
 
-        queue_orders_with_input(self.robot, commands, self.output_dir, self.start_time)
+        queue_orders_with_input(self.robot, commands)
+
+    def recover_after_fail(self):
+        self.clear_center()
+
 
     def run_grasping(self):
         """
@@ -252,25 +259,33 @@ class Autograsper:
         block_height = 0.3
 
         # set up this way to support non uniform block heights
+        colors = [
+            "red",
+            "green",
+        ]
+
         blocks = [
             ("red", block_height),
             ("green", block_height),
         ]
+
         n_layers = len(blocks)
 
         block_heights = np.repeat([block_height], n_layers)
 
+
         if not all_objects_are_visible(
-            blocks, get_undistorted_bottom_image(robot, m, d)
+            colors, self.bottom_image 
         ):
             print("all blocks not visible")
-            return
+            self.clear_center()
 
         while self.state is not RobotActivity.FINISHED:
             try:
                 # Reset robot
                 stack_height = 0
-                startup_position = random.choice(position_bank)
+                # startup_position = random.choice(position_bank)
+                startup_position = [0, 0]
                 self.startup(startup_position)
                 # we only want to start recording after this is finished
 
@@ -279,50 +294,53 @@ class Autograsper:
 
                 time.sleep(0.5)
 
-                print("saving initial state to", self.output_dir)
-                save_state(self.robot, self.output_dir, self.start_time)
-
                 for color, block_height in blocks:
                     camera_position = object_tracking(
-                        get_undistorted_bottom_image(robot, m, d), color, DEBUG=True
+                        self.bottom_image, color, DEBUG=True
                     )
 
                     object_position = cam_to_robot(robot_idx, camera_position)
 
-                    print(color)
-
                     self.pickup_and_place_object(
                         object_position,
-                        max(block_height - 0.25, 0.02),  # grip at max grip surface area
+                        max(block_height - 0.25, 0.02),
                         stack_height,
                         time_between_orders=1.5,
                     )
 
                     stack_height += block_height
 
+                # go to corner to prevent occlusion by gripper arm
+                self.go_to_corner()
+
                 # wait a bit for the final order to complete before changing recording dirs
                 time.sleep(1)
 
                 self.state = RobotActivity.RESETTING
-                time.sleep(0.5)
+                time.sleep(1)
 
-                random_reset_positions = pick_random_positions(
-                    position_bank, n_layers, 0.2
-                )
+                if self.failed:
 
-                print("saving state to", self.output_dir)
-                save_state(
-                    self.robot, self.output_dir, self.start_time
-                )  # Save initial stat
+                    print("stacking failed, recovering")
+                    self.recover_after_fail()
+                    self.failed = False
+                else:
 
-                self.reset(
-                    random_reset_positions, block_heights, time_between_orders=1.5
-                )
+                    random_reset_positions = pick_random_positions(
+                        position_bank, n_layers, 0.2
+                    )
+
+                    self.reset(
+                        random_reset_positions, block_heights, time_between_orders=1.5
+                    )
+
+                    # go to corner to prevent occlusion by gripper arm
+                    self.go_to_corner()
 
                 self.state = RobotActivity.STARTUP
 
                 if not all_objects_are_visible(
-                    blocks, get_undistorted_bottom_image(robot, m, d)
+                    colors, self.bottom_image
                 ):
                     print("not all blocks found after reset, sweeping")
                     sweep_straight(robot)
@@ -331,6 +349,20 @@ class Autograsper:
                 print(
                     f"PAP loop: An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
                 )
+
+    def go_to_corner(self):
+        # TODO vary closed vs open gripper to introduce variation
+        order_list = [
+            (OrderType.MOVE_Z, [1]),
+            (OrderType.MOVE_XY, [0, 0]),
+        ]
+
+        queue_orders(
+            self.robot,
+            order_list,
+            1,
+            output_dir=self.output_dir,
+        )
 
     def manual_control(self):
         """
