@@ -20,6 +20,9 @@ recorder = None
 # Event to signal error
 error_event = threading.Event()
 
+# Lock for bottom_image synchronization
+bottom_image_lock = threading.Lock()
+
 def get_new_session_id(base_dir):
     max_id = 0
     if os.path.exists(base_dir):
@@ -90,6 +93,16 @@ def handle_error(e):
     print(traceback.format_exc())
     error_event.set()  # Signal that an error has occurred
 
+def bottom_image_monitor(recorder, autograsper):
+    try:
+        while not error_event.is_set():
+            if recorder is not None and recorder.bottom_image is not None:
+                with bottom_image_lock:
+                    autograsper.bottom_image = np.copy(recorder.bottom_image)
+            time.sleep(0.1)
+    except Exception as e:
+        handle_error(e)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Robot Controller")
     parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
@@ -138,16 +151,23 @@ if __name__ == "__main__":
                                 target=run_recorder, args=(recorder,)
                             )
                             recorder_thread.start()
+                            bottom_image_thread = threading.Thread(
+                                target=bottom_image_monitor, args=(recorder, autograsper)
+                            )
+                            bottom_image_thread.start()
 
                         recorder.start_new_recording(task_dir)
 
                     elif shared_state == RobotActivity.RESETTING:
+
+                        status_message = "success"
                         if not check_stacking_success():
-                            with open(session_dir + "/status.txt", "w") as file:
-                                file.write("stacking failed")
-                            print("stacking failed")
-                        else:
-                            print("stacking succeeded")
+                            status_message = "fail"
+                            autograsper.failed = True
+
+                        print(status_message)
+                        with open(session_dir + "/status.txt", "w") as file:
+                            file.write(status_message)
 
                         autograsper.output_dir = restore_dir
                         recorder.start_new_recording(restore_dir)
@@ -159,6 +179,7 @@ if __name__ == "__main__":
                         recorder.stop()
                         time.sleep(1)
                         recorder_thread.join()
+                        bottom_image_thread.join()
                     break
 
         print("Final robot activity:", prev_robot_activity)
@@ -172,3 +193,4 @@ if __name__ == "__main__":
         monitor_thread.join()
         if recorder_thread and recorder_thread.is_alive():
             recorder_thread.join()
+
