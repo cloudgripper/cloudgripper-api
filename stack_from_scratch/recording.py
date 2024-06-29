@@ -16,7 +16,7 @@ if project_root not in sys.path:
 from library.rgb_object_tracker import all_objects_are_visible
 from client.cloudgripper_client import GripperRobot
 from library.Camera2Robot import *
-from library.utils import get_undistorted_bottom_image
+from library.utils import get_undistorted_bottom_image, convert_ndarray_to_list
 
 
 class Recorder:
@@ -176,26 +176,14 @@ class Recorder:
         self.stop_flag = True
         print("Stop flag set to True")
 
-    def convert_ndarray_to_list(self, obj: Any) -> Any:
-        if isinstance(obj, dict):
-            return {
-                key: self.convert_ndarray_to_list(value) for key, value in obj.items()
-            }
-        elif isinstance(obj, list):
-            return [self.convert_ndarray_to_list(item) for item in obj]
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, np.generic):
-            return obj.item()
-        else:
-            return obj
+    
 
     def save_state(
         self,
         robot: Any,
     ):
         state, timestamp = robot.get_state()
-        state = self.convert_ndarray_to_list(state)
+        state = convert_ndarray_to_list(state)
         state["time"] = timestamp
 
         state_file = os.path.join(self.output_dir, "states.json")
