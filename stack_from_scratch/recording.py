@@ -2,7 +2,7 @@ import os
 import sys
 import time
 import json
-from typing import Any, Tuple, List
+from typing import Any, Tuple
 import cv2
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -11,7 +11,6 @@ if project_root not in sys.path:
 
 from client.cloudgripper_client import GripperRobot
 from library.utils import convert_ndarray_to_list, get_undistorted_bottom_image
-
 
 class Recorder:
     FPS = 3
@@ -32,8 +31,6 @@ class Recorder:
         self.video_counter = 0
         self.video_writer_top = None
         self.video_writer_bottom = None
-        self.frame_buffer_top: List[Any] = []
-        self.frame_buffer_bottom: List[Any] = []
 
         self.robot = GripperRobot(self.robot_idx, self.token)
         self.image_top, _ = self.robot.get_image_top()
@@ -68,7 +65,7 @@ class Recorder:
 
         return video_writer_top, video_writer_bottom
 
-    def record(self, start_new_video_every: int = None):
+    def record(self, start_new_video_every: int = 30):
         """Record video with optional periodic video restarts."""
         self._prepare_new_recording()
 
@@ -78,13 +75,12 @@ class Recorder:
                 if (
                     start_new_video_every
                     and self.frame_counter % start_new_video_every == 0
+                    and self.frame_counter != 0
                 ):
-                    self._start_or_restart_video_writers()
-                elif start_new_video_every is None and self.frame_counter == 0:
+                    self.video_counter += 1
                     self._start_or_restart_video_writers()
 
                 time.sleep(1 / self.FPS)
-                self._buffer_frames()
 
                 self.save_state(self.robot)
                 self.frame_counter += 1
@@ -96,53 +92,40 @@ class Recorder:
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
-            self._write_frames_to_video()
             self._release_writers()
             cv2.destroyAllWindows()
 
     def _capture_frame(self):
-        """Capture frames from the robot's cameras."""
+        """Capture frames from the robot's cameras and write directly to video file."""
         try:
-            self.image_top, _ = self.robot.get_image_top()
-            self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+            image_top, _ = self.robot.get_image_top()
+            bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+            
+            if self.video_writer_top and self.video_writer_bottom:
+                self.video_writer_top.write(image_top)
+                self.video_writer_bottom.write(bottom_image)
+            else:
+                print("Video writers not initialized.")
+                
+            self.image_top = image_top
+            self.bottom_image = bottom_image
+            
         except Exception as e:
             print(f"Error capturing frame: {e}")
 
-    def _buffer_frames(self):
-        """Buffer the captured frames."""
-        if self.image_top is not None and self.bottom_image is not None:
-            self.frame_buffer_top.append(self.image_top)
-            self.frame_buffer_bottom.append(self.bottom_image)
-        else:
-            print("Frame capture failed, skipping buffer update")
-
     def _start_or_restart_video_writers(self):
         """Start or restart video writers."""
-        self._write_frames_to_video()
         self._release_writers()  # Ensure the old writers are released
         self.video_writer_top, self.video_writer_bottom = self._start_new_video()
-        self.video_counter += 1
-
-    def _write_frames_to_video(self):
-        """Write buffered frames to the video files."""
-        if self.video_writer_top and self.video_writer_bottom:
-            for frame_top, frame_bottom in zip(
-                self.frame_buffer_top, self.frame_buffer_bottom
-            ):
-                try:
-                    self.video_writer_top.write(frame_top)
-                    self.video_writer_bottom.write(frame_bottom)
-                except cv2.error as e:
-                    print(f"Error writing frame to video: {e}")
-            self.frame_buffer_top.clear()  # Clear buffer after writing
-            self.frame_buffer_bottom.clear()  # Clear buffer after writing
 
     def _release_writers(self):
         """Release the video writers."""
         if self.video_writer_top:
             self.video_writer_top.release()
+            self.video_writer_top = None
         if self.video_writer_bottom:
             self.video_writer_bottom.release()
+            self.video_writer_bottom = None
 
     def write_final_image(self):
         """Write the final image from the top camera."""
