@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple, Any
 
 import numpy as np
 
+from filelock import FileLock
 from client.cloudgripper_client import GripperRobot
 from library.calibration import undistort
 
@@ -17,76 +18,43 @@ class OrderType(Enum):
     GRIPPER_OPEN = 4
 
 
-def convert_ndarray_to_list(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {key: convert_ndarray_to_list(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_ndarray_to_list(item) for item in obj]
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, np.generic):
-        return obj.item()
-    else:
-        return obj
-
-
-def print_types_in_state(obj: Any, indent: int = 0) -> None:
-    prefix = " " * indent
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            print(f"{prefix}{key}: {type(value).__name__}")
-            print_types_in_state(value, indent + 2)
-    elif isinstance(obj, list):
-        for index, item in enumerate(obj):
-            print(f"{prefix}[{index}]: {type(item).__name__}")
-            print_types_in_state(item, indent + 2)
-    else:
-        print(f"{prefix}{type(obj).__name__}")
-
-
-def save_state(
-    robot: Any,
+def write_order(
     output_dir: str,
     start_time: float,
     previous_order: Optional[Tuple[Any, List[float]]] = None,
 ):
     """
-    Save the current state of the robot to the states.json file.
+    Save the previous order to the orders.json file.
 
-    :param robot: The robot to get the state from
-    :param output_dir: Directory to save state data
+    :param output_dir: Directory to save order data
     :param start_time: The start time of the autograsper process
     :param previous_order: The previous order executed by the robot
     """
-    state, timestamp = robot.get_state()
+    if previous_order is None:
+        return
 
-    state = convert_ndarray_to_list(state)
+    order_type, order_value = previous_order
 
-    relative_time = timestamp - start_time
+    # Convert order_value to list if it's not already
+    order_value = [float(v) for v in order_value]
 
-    if previous_order is not None:
-        order_type, order_value = previous_order
-        order_value = convert_ndarray_to_list(
-            order_value
-        )  # Ensure order_value is converted
-        state["previous_order"] = {
-            "order_type": order_type.name,
-            "order_value": order_value,
-        }
+    order = {
+        "order_type": order_type.name,
+        "order_value": order_value,
+        "time": start_time,
+    }
 
-    state["time"] = relative_time  # Adding relative time to the state
+    orders_file = os.path.join(output_dir, "orders.json")
 
-    state_file = os.path.join(output_dir, "states.json")
-
-    if os.path.exists(state_file):
-        with open(state_file, "r") as file:
+    if os.path.exists(orders_file):
+        with open(orders_file, "r") as file:
             data = json.load(file)
     else:
         data = []
 
-    data.append(state)
+    data.append(order)
 
-    with open(state_file, "w") as file:
+    with open(orders_file, "w") as file:
         json.dump(data, file, indent=4)
 
 
@@ -94,7 +62,6 @@ def execute_order(
     robot: GripperRobot,
     order: Tuple[OrderType, List[float]],
     output_dir: str,
-    start_time: float,
     reverse_xy: bool = False,
 ):
     """
@@ -110,37 +77,46 @@ def execute_order(
     old API matrix transformations regarding position gathering from images is not updated
     a proper fix should be implemented
     """
+
     try:
         order_type, order_value = order
 
         order_value = np.clip(order_value, 0, 1)
 
+        start_time = 0
+
+        if order_type == OrderType.MOVE_XY and reverse_xy:
+            order_value[0] = 1 - order_value[0]
+
         if order_type == OrderType.MOVE_XY:
-            if reverse_xy:
-                order_value[0] = 1 - order_value[0]
-            robot.move_xy(order_value[0], order_value[1])
+            start_time = robot.move_xy(order_value[0], order_value[1])
+            robot.order_count += 1
         elif order_type == OrderType.MOVE_Z:
-            robot.move_z(order_value[0])
+            start_time = robot.move_z(order_value[0])
+            robot.order_count += 1
         elif order_type == OrderType.GRIPPER_OPEN:
-            robot.gripper_open()
+            start_time = robot.gripper_open()
+            robot.order_count += 1
         elif order_type == OrderType.GRIPPER_CLOSE:
             if len(order_value) != 0:
-                robot.move_gripper(order_value[0])
+                start_time = robot.move_gripper(order_value[0])
+                robot.order_count += 1
             else:
                 current_position = 0.3
                 end_position = 0.20
-                step = 0.01
+                step = 0.02
                 wait_time = 0.05
-
+                start_time = robot.move_gripper(current_position)
                 while current_position >= end_position:
+                    robot.order_count += 1
                     robot.move_gripper(current_position)
                     time.sleep(wait_time)
                     current_position -= step
 
-            time.sleep(1)  # buffer time
-
         if output_dir != "":
-            save_state(robot, output_dir, start_time, order)
+            write_order(output_dir, start_time, order)
+
+            time.sleep(1)  # buffer time
 
     except (IndexError, ValueError) as e:
         print(f"Error executing order {order}: {e}")
@@ -151,7 +127,6 @@ def queue_orders(
     order_list: List[Tuple[OrderType, List[float]]],
     time_between_orders: float,
     output_dir: str = "",
-    start_time: float = -1.0,
     reverse_xy: bool = False,
 ):
     """
@@ -164,7 +139,7 @@ def queue_orders(
     :param start_time: The start time of the autograsper process
     """
     for order in order_list:
-        execute_order(robot, order, output_dir, start_time, reverse_xy)
+        execute_order(robot, order, output_dir, reverse_xy)
         time.sleep(time_between_orders)
 
 
@@ -198,7 +173,7 @@ def queue_orders_with_input(
                 print("Intended command: Gripper Close")
                 input("Press Enter to execute...")
 
-            execute_order(robot, order, output_dir, start_time)
+            execute_order(robot, order, output_dir)
         except (IndexError, ValueError) as e:
             print(f"Error executing order {order}: {e}")
 
@@ -327,5 +302,18 @@ def get_undistorted_bottom_image(
     :param d: Distortion coefficients
     :return: An undistorted image
     """
-    image, _ = robot.getImageBase()
+    image, _, _ = robot.get_image_base()
     return undistort(image, m, d)
+
+
+def convert_ndarray_to_list(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {key: convert_ndarray_to_list(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_ndarray_to_list(item) for item in obj]
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.generic):
+        return obj.item()
+    else:
+        return obj
