@@ -125,14 +125,19 @@ class Recorder:
 
         self.video_counter += 1
 
+
     def _write_frames_to_video(self):
         if self.video_writer_top is not None and self.video_writer_bottom is not None:
             if len(self.frame_buffer_top) > 0 and len(self.frame_buffer_bottom) > 0:
                 for frame_top, frame_bottom in zip(self.frame_buffer_top, self.frame_buffer_bottom):
-                    self.video_writer_top.write(frame_top)
-                    self.video_writer_bottom.write(frame_bottom)
+                    try:
+                        self.video_writer_top.write(frame_top)
+                        self.video_writer_bottom.write(frame_bottom)
+                    except Exception as e:
+                        print(f"Error writing frame to video: {e}")
                 self.frame_buffer_top = []
                 self.frame_buffer_bottom = []
+
 
     def release_writers(self):
         if self.video_writer_top is not None:
