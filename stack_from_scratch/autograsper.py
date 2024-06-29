@@ -245,7 +245,6 @@ class Autograsper:
     def recover_after_fail(self):
         self.clear_center()
 
-
     def run_grasping(self):
         """
         Run the main grasping loop.
@@ -273,10 +272,7 @@ class Autograsper:
 
         block_heights = np.repeat([block_height], n_layers)
 
-
-        if not all_objects_are_visible(
-            colors, self.bottom_image 
-        ):
+        if not all_objects_are_visible(colors, self.bottom_image):
             print("all blocks not visible")
             self.clear_center()
 
@@ -303,7 +299,7 @@ class Autograsper:
 
                     self.pickup_and_place_object(
                         object_position,
-                        max(block_height - 0.25, 0.02),
+                        max(block_height - 0.20, 0.02),
                         stack_height,
                         time_between_orders=1.5,
                     )
@@ -339,9 +335,7 @@ class Autograsper:
 
                 self.state = RobotActivity.STARTUP
 
-                if not all_objects_are_visible(
-                    colors, self.bottom_image
-                ):
+                if not all_objects_are_visible(colors, self.bottom_image):
                     print("not all blocks found after reset, sweeping")
                     sweep_straight(robot)
 
@@ -355,12 +349,15 @@ class Autograsper:
         order_list = [
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, [0, 0]),
+            (OrderType.MOVE_Z, [0]),
+            (OrderType.MOVE_Z, [1]),
+            (OrderType.MOVE_Z, [0]),
         ]
 
         queue_orders(
             self.robot,
             order_list,
-            1,
+            2,
             output_dir=self.output_dir,
         )
 
