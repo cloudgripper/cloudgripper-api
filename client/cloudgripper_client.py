@@ -248,13 +248,6 @@ class GripperRobot:
         """
         image, time_stamp, image_data = self._get_image("getImageBase")
 
-        # self.get_all_states()
-
-        # Write the raw base64 data to a file
-        # if image_data:
-        #     with open("get_base_image_base64.txt", "w") as f:
-        #         f.write(image_data)
-
         return image, time_stamp, image_data
 
     def get_image_top(self) -> Tuple[Optional[np.ndarray], Optional[str]]:
@@ -265,9 +258,6 @@ class GripperRobot:
             Tuple[Optional[np.ndarray], Optional[str]]: The image as a numpy array and the timestamp.
         """
         img = self._get_image("getImageTop")
-
-        with open("get_base_image_base64.txt", "w") as f:
-            f.write(img[2])
 
         return img[0], img[1]
 
