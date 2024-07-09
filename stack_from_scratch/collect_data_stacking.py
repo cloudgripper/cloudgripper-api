@@ -7,6 +7,7 @@ import traceback
 import numpy as np
 from autograsper import Autograsper, RobotActivity
 from recording import Recorder
+
 from library.rgb_object_tracker import all_objects_are_visible
 
 prev_robot_activity = RobotActivity.STARTUP
@@ -92,7 +93,7 @@ def state_monitor(autograsper):
 
 def check_stacking_success():
     colors = ["red", "green"]
-    return not all_objects_are_visible(colors, recorder.bottom_image, DEBUG=True)
+    return not all_objects_are_visible(colors, recorder.bottom_image, DEBUG=False)
 
 
 def handle_error(e):
@@ -145,8 +146,6 @@ if __name__ == "__main__":
         while not error_event.is_set():
             with state_lock:
                 if shared_state != prev_robot_activity:
-                    print("State change:", prev_robot_activity, "->", shared_state)
-
                     if prev_robot_activity is not RobotActivity.STARTUP:
                         recorder.write_final_image()
 
@@ -167,9 +166,10 @@ if __name__ == "__main__":
                             bottom_image_thread.start()
 
                         recorder.start_new_recording(task_dir)
+                        time.sleep(0.5)
+                        autograsper.start_flag = True
 
                     elif shared_state == RobotActivity.RESETTING:
-
                         status_message = "success"
                         if not check_stacking_success():
                             status_message = "fail"

@@ -1,4 +1,3 @@
-import numpy
 import argparse
 import os
 import random
@@ -7,6 +6,7 @@ import time
 from enum import Enum
 from typing import List, Tuple
 
+import numpy
 import numpy as np
 from dotenv import load_dotenv
 from pynput import keyboard
@@ -73,6 +73,7 @@ class Autograsper:
         )
 
         self.state = RobotActivity.STARTUP
+        self.start_flag = False
 
         try:
             self.robot = GripperRobot(args.robot_idx, self.token)
@@ -145,7 +146,6 @@ class Autograsper:
 
             order_list = []
 
-            # this can be enabled if before resetting the gripper moves to a random position, to make the destacking data more general
             if index == 0:
                 order_list += [
                     (OrderType.MOVE_Z, [1]),
@@ -236,8 +236,6 @@ class Autograsper:
             (OrderType.MOVE_Z, [1.0]),
             (OrderType.MOVE_XY, [1.0, 1.0]),
             (OrderType.MOVE_Z, [height]),
-            (OrderType.MOVE_Z, [1.0]),
-            (OrderType.MOVE_XY, [1.0, 1.0]),
         ]
 
         queue_orders_with_input(self.robot, commands)
@@ -245,16 +243,22 @@ class Autograsper:
     def recover_after_fail(self):
         self.clear_center()
 
+    def get_block_pos(self, color, debug=False):
+        cam_position = object_tracking(self.bottom_image, color, DEBUG=debug)
+
+        return cam_to_robot(self.robot_idx, cam_position)
+
     def run_grasping(self):
         """
         Run the main grasping loop.
         """
-        robot = self.robot
-        m = self.m
-        d = self.d
-        robot_idx = self.robot_idx
 
         position_bank = generate_position_grid()
+
+        # while doing initial testing, limit start positions
+        position_bank = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.2], [0.8, 0.8]]
+        position_bank = np.array(position_bank)
+
         block_height = 0.3
 
         # set up this way to support non uniform block heights
@@ -268,9 +272,15 @@ class Autograsper:
             ("green", block_height),
         ]
 
+        bottom_color = "red"
+
         n_layers = len(blocks)
 
         block_heights = np.repeat([block_height], n_layers)
+
+        stack_position = [0.5, 0.5]
+
+        bottom_block_pos = stack_position
 
         if not all_objects_are_visible(colors, self.bottom_image):
             print("all blocks not visible")
@@ -280,28 +290,37 @@ class Autograsper:
             try:
                 # Reset robot
                 stack_height = 0
-                # startup_position = random.choice(position_bank)
-                startup_position = [0, 0]
-                self.startup(startup_position)
-                # we only want to start recording after this is finished
+
+                self.go_to_corner()
 
                 # Start main task
                 self.state = RobotActivity.ACTIVE
 
-                time.sleep(0.5)
+                while not self.start_flag:
+                    print("Waiting for start signal")
+                    time.sleep(0.1)
+                self.start_flag = False
 
                 for color, block_height in blocks:
-                    camera_position = object_tracking(
-                        self.bottom_image, color, DEBUG=True
-                    )
+                    bottom_block_position = self.get_block_pos(bottom_color)
 
-                    object_position = cam_to_robot(robot_idx, camera_position)
+                    object_position = self.get_block_pos(color, debug=True)
+
+                    if color is not bottom_color:
+                        print("not bottom")
+                        target_pos = bottom_block_position
+                    else:
+                        print("is bottom")
+                        target_pos = stack_position
+
+                    print("object position", object_position)
 
                     self.pickup_and_place_object(
                         object_position,
                         max(block_height - 0.20, 0.02),
                         stack_height,
                         time_between_orders=1.5,
+                        target_position=target_pos,
                     )
 
                     stack_height += block_height
@@ -316,18 +335,19 @@ class Autograsper:
                 time.sleep(1)
 
                 if self.failed:
-
                     print("stacking failed, recovering")
                     self.recover_after_fail()
                     self.failed = False
                 else:
-
                     random_reset_positions = pick_random_positions(
                         position_bank, n_layers, 0.2
                     )
 
                     self.reset(
-                        random_reset_positions, block_heights, time_between_orders=1.5
+                        random_reset_positions,
+                        block_heights,
+                        time_between_orders=1.5,
+                        stack_position=bottom_block_pos,
                     )
 
                     # go to corner to prevent occlusion by gripper arm
@@ -335,23 +355,27 @@ class Autograsper:
 
                 self.state = RobotActivity.STARTUP
 
-                if not all_objects_are_visible(colors, self.bottom_image):
-                    print("not all blocks found after reset, sweeping")
-                    sweep_straight(robot)
-
             except Exception as e:
                 print(
                     f"PAP loop: An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
                 )
 
     def go_to_corner(self):
-        # TODO vary closed vs open gripper to introduce variation
+        # Generate random x and y values within the specified ranges
+
+        # random_x = random.uniform(0, 1)
+        # random_y = random.uniform(1, 0.7)
+        # position = [random_x, random_y]
+
+        # limit during initial testing
+        positions = [[1, 0.7], [0, 0.7]]
+        positions = np.array(positions)
+
+        position = np.choose(1, positions)
+
         order_list = [
             (OrderType.MOVE_Z, [1]),
-            (OrderType.MOVE_XY, [0, 0]),
-            (OrderType.MOVE_Z, [0]),
-            (OrderType.MOVE_Z, [1]),
-            (OrderType.MOVE_Z, [0]),
+            (OrderType.MOVE_XY, position),
         ]
 
         queue_orders(
