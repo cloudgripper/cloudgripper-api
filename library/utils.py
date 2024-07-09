@@ -2,11 +2,10 @@ import json
 import os
 import time
 from enum import Enum
-from typing import List, Optional, Tuple, Any
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
-from filelock import FileLock
 from client.cloudgripper_client import GripperRobot
 from library.calibration import undistort
 
