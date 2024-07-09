@@ -1,8 +1,9 @@
+import json
 import os
 import sys
 import time
-import json
 from typing import Any, Tuple
+
 import cv2
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -10,7 +11,7 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 from client.cloudgripper_client import GripperRobot
-from library.utils import convert_ndarray_to_list, get_undistorted_bottom_image
+from library.utils import convert_ndarray_to_list, undistort
 
 
 class Recorder:
@@ -34,8 +35,10 @@ class Recorder:
         self.video_writer_bottom = None
 
         self.robot = GripperRobot(self.robot_idx, self.token)
-        self.image_top, _ = self.robot.get_image_top()
-        self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+
+        self.image_top, self.bottom_image, self.state, self.timestamp = (
+            self.robot.get_all_states()
+        )
 
         self._initialize_directories()
 
@@ -85,7 +88,6 @@ class Recorder:
 
                 self.save_state(self.robot)
                 self.frame_counter += 1
-                print("Frames recorded:", self.frame_counter)
 
                 cv2.imshow(f"ImageBottom_{self.robot_idx}", self.bottom_image)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -99,17 +101,17 @@ class Recorder:
     def _capture_frame(self):
         """Capture frames from the robot's cameras and write directly to video file."""
         try:
-            image_top, _ = self.robot.get_image_top()
-            bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+            self.image_top, self.bottom_image, self.state, self.timestamp = (
+                self.robot.get_all_states()
+            )
+
+            self.bottom_image = undistort(self.bottom_image, self.m, self.d)
 
             if self.video_writer_top and self.video_writer_bottom:
-                self.video_writer_top.write(image_top)
-                self.video_writer_bottom.write(bottom_image)
+                self.video_writer_top.write(self.image_top)
+                self.video_writer_bottom.write(self.bottom_image)
             else:
                 print("Video writers not initialized.")
-
-            self.image_top = image_top
-            self.bottom_image = bottom_image
 
         except Exception as e:
             print(f"Error capturing frame: {e}")
@@ -130,12 +132,10 @@ class Recorder:
 
     def write_final_image(self):
         """Write the final image from the top camera."""
-        print("Writing final image")
-        image_top, _ = self.robot.get_image_top()
         final_image_path = os.path.join(
             self.final_image_dir, f"final_image_{self.video_counter}.jpg"
         )
-        cv2.imwrite(final_image_path, image_top)
+        cv2.imwrite(final_image_path, self.image_top)
 
     def start_new_recording(self, new_output_dir: str):
         """Start a new recording session with a new output directory."""
@@ -158,7 +158,7 @@ class Recorder:
 
     def save_state(self, robot: Any):
         """Save the state of the robot to a JSON file."""
-        state, timestamp = robot.get_state()
+        state, timestamp = self.state, self.timestamp
         state = convert_ndarray_to_list(state)
         state["time"] = timestamp
 
