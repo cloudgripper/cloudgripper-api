@@ -1,7 +1,8 @@
+import argparse
+import os
+
 import cv2
 import numpy as np
-import os
-import argparse
 
 
 def test_calibration(image, colors):
@@ -14,7 +15,8 @@ def all_objects_are_visible(objects, image, DEBUG=False):
     for obj in objects:
         try:
             if object_tracking(image, obj, DEBUG=DEBUG) is None:
-                print("block not found", obj)
+                if DEBUG:
+                    print("block not found", obj)
                 return False
         except Exception as e:  # TODO make custom exceptions
             print(e)
@@ -109,7 +111,8 @@ def object_tracking(
             return None
 
     else:
-        print("No large contours found of color", color)
+        if DEBUG:
+            print("No large contours found of color", color)
         return None
 
     if DEBUG:
