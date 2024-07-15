@@ -146,6 +146,7 @@ class Autograsper:
 
             order_list = []
 
+            # move to stack position
             if index == 0:
                 order_list += [
                     (OrderType.MOVE_Z, [1]),
@@ -153,6 +154,7 @@ class Autograsper:
                     (OrderType.GRIPPER_OPEN, []),
                 ]
 
+            # move top block to position
             order_list += [
                 (OrderType.MOVE_Z, [target_z]),
                 (OrderType.GRIPPER_CLOSE, []),
@@ -162,6 +164,7 @@ class Autograsper:
                 (OrderType.GRIPPER_OPEN, []),
             ]
 
+            # if it's not the last block, move back to stack position
             if index != len(rev_heights) - 1:
                 order_list += [
                     (OrderType.MOVE_Z, [target_z]),
