@@ -1,8 +1,9 @@
-from requests import get, exceptions
-import cv2
 import base64
+from typing import Any, Dict, Optional, Tuple
+
+import cv2
 import numpy as np
-from typing import Tuple, Optional, Dict, Any
+from requests import exceptions, get
 
 
 class GripperRobot:
@@ -265,9 +266,7 @@ class GripperRobot:
         self,
     ) -> Tuple[
         Optional[np.ndarray],
-        Optional[str],
         Optional[np.ndarray],
-        Optional[str],
         Optional[str],
         Optional[str],
     ]:
@@ -299,4 +298,4 @@ class GripperRobot:
         #     with open("all_base_image_base64.txt", "w") as f:
         #         f.write(image_base_data)
 
-        return image_top, time_top, image_base, time_base, state, time_state
+        return image_top, image_base, state, time_state
