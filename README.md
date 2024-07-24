@@ -1,4 +1,4 @@
-# CloudGripper API Client
+# CloudGripper API
 
 Welcome to the CloudGripper API! This project provides a Python interface to remotely interact with the CloudGripper robot.
 
@@ -17,7 +17,7 @@ Welcome to the CloudGripper API! This project provides a Python interface to rem
 
 ## Introduction
 
-The CloudGripper API Client is designed to facilitate communication with the CloudGripper robot. The client includes functions to control the robot's movements, operate its gripper, retrieve images from its cameras, perform color calibration, and manage orders for the robot.
+The CloudGripper API is designed to facilitate communication with the CloudGripper robot. The client includes functions to control the robot's movements, operate its gripper, retrieve images from its cameras, perform color calibration, and manage orders for the robot.
 
 ## Installation
 
