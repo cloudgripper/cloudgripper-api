@@ -226,8 +226,12 @@ class Autograsper:
         stack_height = 0
 
         for color, block_height in blocks:
-            bottom_block_position = get_object_pos(self.robot_idx, bottom_color)
-            object_position = get_object_pos(self.robot_idx, color, debug=True)
+            bottom_block_position = get_object_pos(
+                self.bottom_image, self.robot_idx, bottom_color
+            )
+            object_position = get_object_pos(
+                self.bottom_image, self.robot_idx, color, debug=True
+            )
 
             target_pos = (
                 bottom_block_position if color != bottom_color else stack_position
