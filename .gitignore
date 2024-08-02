@@ -4,4 +4,7 @@
 */*pycache*/*
 **/__pycache__/
 **.hdf5
+**.env
 
+library/__pycache__/__init__.cpython-38.pyc
+library/__pycache__
