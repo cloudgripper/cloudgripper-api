@@ -1,35 +1,28 @@
-import argparse
 import os
-import random
 import sys
 import time
 from enum import Enum
 from typing import List, Tuple
 
-import numpy
 import numpy as np
 from dotenv import load_dotenv
-from pynput import keyboard
 
+# Ensure the project root is in the system path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
+# Import project-specific modules
 from client.cloudgripper_client import GripperRobot
-from library.calibration import order2movement
-from library.Camera2Robot import Camera2Robot, cam_to_robot
-from library.rgb_object_tracker import all_objects_are_visible, object_tracking
+from library.rgb_object_tracker import all_objects_are_visible, get_object_pos
 from library.utils import (
     OrderType,
-    generate_position_grid,
     get_undistorted_bottom_image,
     pick_random_positions,
     queue_orders,
-    queue_orders_with_input,
-    snowflake_sweep,
-    sweep_straight,
 )
 
+# Load environment variables
 load_dotenv()
 
 
@@ -41,21 +34,22 @@ class RobotActivity(Enum):
 
 
 class Autograsper:
-    def __init__(self, args, output_dir=""):
+    def __init__(self, args, output_dir: str = ""):
         """
         Initialize the Autograsper with the provided arguments.
 
         :param args: Command-line arguments
         :param output_dir: Directory to save state data
         """
-        self.token = os.getenv("ROBOT_TOKEN", "default_token")
-        if self.token == "default_token":
+        self.token = os.getenv("ROBOT_TOKEN")
+        if not self.token:
             raise ValueError("ROBOT_TOKEN environment variable not set")
 
         self.output_dir = output_dir
         self.start_time = time.time()
         self.failed = False
 
+        # Camera calibration parameters
         self.m = np.array(
             [
                 [505.24537524391866, 0.0, 324.5096286632362],
@@ -75,14 +69,32 @@ class Autograsper:
         self.state = RobotActivity.STARTUP
         self.start_flag = False
 
+        self.robot = self.initialize_robot(args.robot_idx, self.token)
+        self.robot_idx = args.robot_idx
+        self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+
+    @staticmethod
+    def initialize_robot(robot_idx: int, token: str) -> GripperRobot:
+        """
+        Initialize the GripperRobot instance.
+
+        :param robot_idx: Index of the robot.
+        :param token: Authentication token for the robot.
+        :return: GripperRobot instance.
+        """
         try:
-            self.robot = GripperRobot(args.robot_idx, self.token)
+            return GripperRobot(robot_idx, token)
         except Exception as e:
             raise ValueError("Invalid robot ID or token") from e
 
-        self.robot_idx = args.robot_idx
+    def queue_robot_orders(self, orders: List[Tuple[OrderType, List]], delay: float):
+        """
+        Queue a list of orders to the robot.
 
-        self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+        :param orders: List of orders to queue.
+        :param delay: Time delay between orders.
+        """
+        queue_orders(self.robot, orders, delay, output_dir=self.output_dir)
 
     def pickup_and_place_object(
         self,
@@ -90,19 +102,18 @@ class Autograsper:
         object_height: float,
         target_height: float,
         target_position: List[float] = [0.5, 0.5],
-        time_between_orders: int = 3,
+        time_between_orders: float = 1.5,
     ):
         """
         Pickup and place an object from one position to another.
 
-        :param object_position: Position of the object to pick up
-        :param object_height: Height of the object
-        :param target_height: Target height for placing the object
-        :param target_position: Target position for placing the object
-        :param time_between_orders: Time to wait between orders
+        :param object_position: Position of the object to pick up.
+        :param object_height: Height of the object.
+        :param target_height: Target height for placing the object.
+        :param target_position: Target position for placing the object.
+        :param time_between_orders: Time to wait between orders.
         """
-
-        order_list = [
+        orders = [
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, object_position),
             (OrderType.GRIPPER_OPEN, []),
@@ -113,49 +124,38 @@ class Autograsper:
             (OrderType.MOVE_Z, [target_height]),
             (OrderType.GRIPPER_OPEN, []),
         ]
-
-        queue_orders(
-            self.robot,
-            order_list,
-            time_between_orders,
-            output_dir=self.output_dir,
-        )
+        self.queue_robot_orders(orders, time_between_orders)
 
     def reset(
         self,
         block_positions: List[List[float]],
         block_heights: np.ndarray,
         stack_position: List[float] = [0.5, 0.5],
-        time_between_orders: int = 2,
+        time_between_orders: float = 1.5,
     ):
-        # TODO add going to corner if finished
         """
         Reset the blocks to their initial positions.
 
-        :param block_positions: Positions of the blocks
-        :param block_heights: Heights of the blocks
-        :param stack_position: Position for stacking the blocks
-        :param time_between_orders: Time to wait between orders
+        :param block_positions: Positions of the blocks.
+        :param block_heights: Heights of the blocks.
+        :param stack_position: Position for stacking the blocks.
+        :param time_between_orders: Time to wait between orders.
         """
         rev_heights = np.flip(block_heights.copy())
-
         target_z = sum(rev_heights)
 
         for index, block_pos in enumerate(block_positions):
             target_z -= rev_heights[index]
+            orders = []
 
-            order_list = []
-
-            # move to stack position
             if index == 0:
-                order_list += [
+                orders += [
                     (OrderType.MOVE_Z, [1]),
                     (OrderType.MOVE_XY, stack_position),
                     (OrderType.GRIPPER_OPEN, []),
                 ]
 
-            # move top block to position
-            order_list += [
+            orders += [
                 (OrderType.MOVE_Z, [target_z]),
                 (OrderType.GRIPPER_CLOSE, []),
                 (OrderType.MOVE_Z, [1]),
@@ -164,54 +164,19 @@ class Autograsper:
                 (OrderType.GRIPPER_OPEN, []),
             ]
 
-            # if it's not the last block, move back to stack position
             if index != len(rev_heights) - 1:
-                order_list += [
+                orders += [
                     (OrderType.MOVE_Z, [target_z]),
                     (OrderType.MOVE_XY, stack_position),
                 ]
 
-            queue_orders(
-                self.robot,
-                order_list,
-                time_between_orders,
-                output_dir=self.output_dir,
-            )
-
-    def clear_center(self):
-        """
-        Clear the center area of the workspace.
-        """
-        print("clearing center")
-        commands = [
-            (OrderType.MOVE_Z, [1]),
-            (OrderType.GRIPPER_CLOSE, []),
-            (OrderType.MOVE_XY, [0.3, 0.3]),
-            (OrderType.MOVE_Z, [0.4]),
-            (OrderType.MOVE_XY, [0.5, 0.3]),
-            (OrderType.MOVE_XY, [0.5, 0.7]),
-            (OrderType.MOVE_XY, [0.3, 0.7]),
-            (OrderType.MOVE_Z, [0.1]),
-            (OrderType.MOVE_XY, [0.3, 0.5]),
-            (OrderType.MOVE_XY, [0.7, 0.5]),
-            (OrderType.MOVE_XY, [0.3, 0.3]),
-            (OrderType.MOVE_XY, [0.5, 0.5]),
-            (OrderType.MOVE_XY, [0.7, 0.7]),
-            (OrderType.MOVE_XY, [0.7, 0.5]),
-            (OrderType.MOVE_XY, [0.7, 0.3]),
-            (OrderType.MOVE_XY, [0.5, 0.5]),
-            (OrderType.MOVE_XY, [0.3, 0.7]),
-            (OrderType.MOVE_Z, [1]),
-        ]
-
-        queue_orders(self.robot, commands, 1)
-        print("clearing center complete")
+            self.queue_robot_orders(orders, time_between_orders)
 
     def startup(self, position: List[float]):
         """
         Perform startup sequence at a given position.
 
-        :param position: Position to start up at
+        :param position: Position to start up at.
         """
         self.robot.rotate(0)
         time.sleep(0.5)
@@ -220,285 +185,139 @@ class Autograsper:
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, position),
         ]
-
-        queue_orders(self.robot, startup_commands, 1)
+        self.queue_robot_orders(startup_commands, 1)
         time.sleep(1)
-
-    def run_calibration(self, height):
-        commands = [
-            (OrderType.GRIPPER_CLOSE, []),
-            (OrderType.MOVE_Z, [1.0]),
-            (OrderType.MOVE_XY, [0.0, 0.0]),
-            (OrderType.MOVE_Z, [height]),
-            (OrderType.MOVE_Z, [1.0]),
-            (OrderType.MOVE_XY, [1.0, 0.0]),
-            (OrderType.MOVE_Z, [height]),
-            (OrderType.MOVE_Z, [1.0]),
-            (OrderType.MOVE_XY, [0.0, 1.0]),
-            (OrderType.MOVE_Z, [height]),
-            (OrderType.MOVE_Z, [1.0]),
-            (OrderType.MOVE_XY, [1.0, 1.0]),
-            (OrderType.MOVE_Z, [height]),
-        ]
-
-        queue_orders_with_input(self.robot, commands)
 
     def recover_after_fail(self):
         self.clear_center()
 
-    def get_block_pos(self, color, debug=False):
-        cam_position = object_tracking(self.bottom_image, color, DEBUG=debug)
-
-        return cam_to_robot(self.robot_idx, cam_position)
-
-    def run_grasping(self):
+    def wait_for_start_signal(self):
         """
-        Run the main grasping loop.
+        Wait for the start signal.
         """
+        while not self.start_flag:
+            print("Waiting for start signal")
+            time.sleep(0.1)
 
-        position_bank = generate_position_grid()
+    def prepare_experiment(self, position_bank, stack_position):
+        """
+        Prepare the experiment by setting default positions.
 
-        # while doing initial testing, limit start positions
-        position_bank = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.2], [0.8, 0.8]]
+        :param position_bank: List of start positions for blocks.
+        :param stack_position: Position to stack the blocks.
+        :return: Tuple containing position_bank and stack_position.
+        """
+        if position_bank is None:
+            position_bank = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.2], [0.8, 0.8]]
         position_bank = np.array(position_bank)
 
-        block_height = 0.3
+        if stack_position is None:
+            stack_position = [0.5, 0.5]
 
-        # set up this way to support non uniform block heights
-        colors = [
-            "red",
-            "green",
-        ]
+        return position_bank, stack_position
 
-        blocks = [
-            ("red", block_height),
-            ("green", block_height),
-        ]
+    def stack_objects(self, colors, block_heights, stack_position):
+        """
+        Stack objects based on their colors and heights.
 
-        bottom_color = "red"
+        :param colors: List of colors for the blocks.
+        :param block_heights: List of heights corresponding to each block.
+        :param stack_position: Position to stack the blocks.
+        """
+        blocks = list(zip(colors, block_heights))
+        bottom_color = colors[0]
 
-        n_layers = len(blocks)
+        stack_height = 0
 
-        block_heights = np.repeat([block_height], n_layers)
+        for color, block_height in blocks:
+            bottom_block_position = get_object_pos(self.robot_idx, bottom_color)
+            object_position = get_object_pos(self.robot_idx, color, debug=True)
 
-        stack_position = [0.5, 0.5]
+            target_pos = (
+                bottom_block_position if color != bottom_color else stack_position
+            )
 
-        bottom_block_pos = stack_position
+            self.pickup_and_place_object(
+                object_position,
+                max(block_height - 0.20, 0.02),
+                stack_height,
+                target_position=target_pos,
+            )
+
+            stack_height += block_height
+
+    def run_grasping(
+        self,
+        colors,
+        block_heights,
+        position_bank=None,
+        stack_position=None,
+        object_size: float = 2,
+    ):
+        """
+        Run the main grasping loop.
+
+        :param colors: List of colors for the blocks.
+        :param block_heights: List of heights corresponding to each block.
+        :param position_bank: List of start positions for blocks. Defaults to predefined positions.
+        :param stack_position: Position to stack the blocks. Defaults to [0.5, 0.5].
+        :param object_size: Size of the objects.
+        """
+        position_bank, stack_position = self.prepare_experiment(
+            position_bank, stack_position
+        )
 
         if not all_objects_are_visible(colors, self.bottom_image):
-            print("all blocks not visible")
-            self.clear_center()
+            print("All blocks not visible")
 
         while self.state is not RobotActivity.FINISHED:
             try:
-                # Reset robot
-                stack_height = 0
-
-                self.go_to_corner()
-
-                # Start main task
+                self.go_to_start()
                 self.state = RobotActivity.ACTIVE
 
-                while not self.start_flag:
-                    print("Waiting for start signal")
-                    time.sleep(0.1)
+                self.wait_for_start_signal()
                 self.start_flag = False
 
-                for color, block_height in blocks:
-                    bottom_block_position = self.get_block_pos(bottom_color)
+                self.stack_objects(colors, block_heights, stack_position)
 
-                    object_position = self.get_block_pos(color, debug=True)
-
-                    if color is not bottom_color:
-                        print("not bottom")
-                        target_pos = bottom_block_position
-                    else:
-                        print("is bottom")
-                        target_pos = stack_position
-
-                    print("object position", object_position)
-
-                    self.pickup_and_place_object(
-                        object_position,
-                        max(block_height - 0.20, 0.02),
-                        stack_height,
-                        time_between_orders=1.5,
-                        target_position=target_pos,
-                    )
-
-                    stack_height += block_height
-
-                # go to corner to prevent occlusion by gripper arm
-                self.go_to_corner()
-
-                # wait a bit for the final order to complete before changing recording dirs
+                self.go_to_start()
                 time.sleep(1)
-
                 self.state = RobotActivity.RESETTING
                 time.sleep(1)
 
                 if self.failed:
-                    print("stacking failed, recovering")
+                    print("Experiment failed, recovering")
                     self.recover_after_fail()
                     self.failed = False
                 else:
                     random_reset_positions = pick_random_positions(
-                        position_bank, n_layers, 0.2
+                        position_bank, len(block_heights), object_size
                     )
-
                     self.reset(
                         random_reset_positions,
                         block_heights,
-                        time_between_orders=1.5,
-                        stack_position=bottom_block_pos,
+                        stack_position=stack_position,
                     )
-
-                    # go to corner to prevent occlusion by gripper arm
-                    self.go_to_corner()
+                    self.go_to_start()
 
                 self.state = RobotActivity.STARTUP
 
             except Exception as e:
                 print(
-                    f"PAP loop: An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
+                    f"Run grasping loop: An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
                 )
 
-    def go_to_corner(self):
-        # Generate random x and y values within the specified ranges
-
-        # random_x = random.uniform(0, 1)
-        # random_y = random.uniform(1, 0.7)
-        # position = [random_x, random_y]
-
-        # limit during initial testing
+    def go_to_start(self):
+        """
+        Move the robot to the start position.
+        """
         positions = [[1, 0.7], [0, 0.7]]
         positions = np.array(positions)
 
         position = np.choose(1, positions)
 
-        order_list = [
+        orders = [
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, position),
         ]
-
-        queue_orders(
-            self.robot,
-            order_list,
-            2,
-            output_dir=self.output_dir,
-        )
-
-    def manual_control(self):
-        """
-        Manually control the robot using keyboard inputs.
-        """
-        self.current_x = 0.0
-        self.current_y = 0.0
-        self.current_z = 0.0
-        self.current_rotation = 0
-        self.current_angle = 0.4
-
-        def on_press(key):
-            try:
-                if key.char == "w":
-                    self.current_y += 0.1
-                    self.current_y = min(max(self.current_y, 0), 1)
-                    self.robot.move_xy(self.current_x, self.current_y)
-                elif key.char == "a":
-                    self.current_x -= 0.1
-                    self.current_x = min(max(self.current_x, 0), 1)
-                    self.robot.move_xy(self.current_x, self.current_y)
-                elif key.char == "s":
-                    self.current_y -= 0.1
-                    self.current_y = min(max(self.current_y, 0), 1)
-                    self.robot.move_xy(self.current_x, self.current_y)
-
-                elif key.char == "x":
-                    self.current_y -= 0.05
-                    self.current_y = min(max(self.current_y, 0), 1)
-                    self.robot.move_xy(self.current_x, self.current_y)
-
-                elif key.char == "z":
-                    self.current_y -= 0.01
-                    self.current_y = min(max(self.current_y, 0), 1)
-                    self.robot.move_xy(self.current_x, self.current_y)
-
-                elif key.char == "d":
-                    self.current_x += 0.1
-                    self.current_x = min(max(self.current_x, 0), 1)
-                    self.robot.move_xy(self.current_x, self.current_y)
-                elif key.char == "r":
-                    self.current_z += 0.1
-                    self.current_z = min(max(self.current_z, 0), 1)
-                    print(self.current_z)
-                    self.robot.move_z(self.current_z)
-                elif key.char == "f":
-                    self.current_z -= 0.1
-                    self.current_z = min(max(self.current_z, 0), 1)
-                    print(self.current_z)
-                    self.robot.move_z(self.current_z)
-                elif key.char == "i":
-                    self.current_angle += 0.05
-                    self.current_angle = min(self.current_angle, 1)
-                    print(self.current_angle)
-                    self.robot.move_gripper(self.current_angle)
-                elif key.char == "o":
-                    self.current_angle += 0.01
-                    self.current_angle = min(self.current_angle, 1)
-                    print(self.current_angle)
-                    self.robot.move_gripper(self.current_angle)
-                elif key.char == "p":
-                    self.current_angle -= 0.01
-                    self.current_angle = max(self.current_angle, 0.2)
-                    print(self.current_angle)
-                    self.robot.move_gripper(self.current_angle)
-                elif key.char == "q":
-                    self.current_rotation -= 10
-                    self.robot.rotate(self.current_rotation)
-                elif key.char == "e":
-                    self.current_rotation += 10
-                    self.robot.rotate(self.current_rotation)
-
-                elif key.char == "n":
-                    self.robot.gripper_open()
-                    time.sleep(1)
-                    self.robot.move_z(0)
-                    time.sleep(1)
-                    self.robot.move_gripper(0.5)
-                    time.sleep(1)
-                    self.robot.move_z(1)
-                    time.sleep(1)
-                    self.robot.move_xy(
-                        min(self.current_x + 0.2, 1), min(self.current_y + 0.2, 1)
-                    )
-                    time.sleep(1)
-                    self.robot.move_xy(self.current_x, self.current_y)
-                    time.sleep(1)
-                    self.robot.move_z(0)
-                    time.sleep(1)
-
-                elif key.char == "b":
-                    self.state = RobotActivity.FINISHED
-
-            except Exception as e:
-                print(e)
-
-        def on_release(key):
-            if key == keyboard.Key.esc:
-                # Stop listener
-                return False
-
-        with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-            listener.join()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Autograsper Robot Controller")
-    parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
-    parser.add_argument(
-        "--output_dir", type=str, required=True, help="Output directory"
-    )
-    args = parser.parse_args()
-
-    autograsper = Autograsper(args, args.output_dir)
-    autograsper.run_grasping()
+        self.queue_robot_orders(orders, 2)
