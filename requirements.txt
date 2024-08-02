@@ -1,4 +1,4 @@
 requests
-opencv-python
+opencv - python
 numpy
 pybase64
