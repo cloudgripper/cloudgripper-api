@@ -26,8 +26,8 @@ class SharedState:
     def __init__(self):
         self.state: RobotActivity = RobotActivity.STARTUP
         self.recorder: Optional[Recorder] = None
-        self.recorder_thread: Optional[threading.Thread] = threading.Thread()
-        self.bottom_image_thread: Optional[threading.Thread] = threading.Thread()
+        self.recorder_thread: Optional[threading.Thread] = None
+        self.bottom_image_thread: Optional[threading.Thread] = None
 
 
 shared_state = SharedState()
@@ -149,7 +149,9 @@ def initialize(args: argparse.Namespace) -> Tuple[Autograsper, ConfigParser, str
     return autograsper, config, script_dir
 
 
-def start_threads(autograsper: Autograsper, config: ConfigParser) -> None:
+def start_threads(
+    autograsper: Autograsper, config: ConfigParser
+) -> Tuple[threading.Thread, threading.Thread, list]:
     colors = eval(config["experiment"]["colors"])
     block_heights = np.array(eval(config["experiment"]["block_heights"]))
     position_bank = eval(config["experiment"]["position_bank"])
@@ -174,11 +176,15 @@ def start_threads(autograsper: Autograsper, config: ConfigParser) -> None:
     autograsper_thread.start()
     monitor_thread.start()
 
-    return autograsper_thread, monitor_thread
+    return autograsper_thread, monitor_thread, colors
 
 
 def handle_state_changes(
-    autograsper: Autograsper, config: ConfigParser, script_dir: str
+    autograsper: Autograsper,
+    config: ConfigParser,
+    script_dir: str,
+    colors,
+    args: argparse.Namespace,
 ) -> None:
     prev_robot_activity = RobotActivity.STARTUP
     session_dir, task_dir, restore_dir = "", "", ""
@@ -261,10 +267,10 @@ def main():
     args = parse_arguments()
     autograsper, config, script_dir = initialize(args)
 
-    autograsper_thread, monitor_thread = start_threads(autograsper, config)
+    autograsper_thread, monitor_thread, colors = start_threads(autograsper, config)
 
     try:
-        handle_state_changes(autograsper, config, script_dir)
+        handle_state_changes(autograsper, config, script_dir, colors, args)
     except Exception as e:
         handle_error(e)
     finally:
