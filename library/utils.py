@@ -3,6 +3,7 @@ import os
 import time
 from enum import Enum
 from typing import Any, List, Optional, Tuple
+from pynput import keyboard
 
 import numpy as np
 
@@ -305,6 +306,26 @@ def get_undistorted_bottom_image(
     return undistort(image, m, d)
 
 
+def run_calibration(height, robot):
+    commands = [
+        (OrderType.GRIPPER_CLOSE, []),
+        (OrderType.MOVE_Z, [1.0]),
+        (OrderType.MOVE_XY, [0.0, 0.0]),
+        (OrderType.MOVE_Z, [height]),
+        (OrderType.MOVE_Z, [1.0]),
+        (OrderType.MOVE_XY, [1.0, 0.0]),
+        (OrderType.MOVE_Z, [height]),
+        (OrderType.MOVE_Z, [1.0]),
+        (OrderType.MOVE_XY, [0.0, 1.0]),
+        (OrderType.MOVE_Z, [height]),
+        (OrderType.MOVE_Z, [1.0]),
+        (OrderType.MOVE_XY, [1.0, 1.0]),
+        (OrderType.MOVE_Z, [height]),
+    ]
+
+    queue_orders_with_input(robot, commands)
+
+
 def convert_ndarray_to_list(obj: Any) -> Any:
     if isinstance(obj, dict):
         return {key: convert_ndarray_to_list(value) for key, value in obj.items()}
@@ -316,3 +337,130 @@ def convert_ndarray_to_list(obj: Any) -> Any:
         return obj.item()
     else:
         return obj
+
+
+def manual_control(robot):
+    """
+    Manually control the robot using keyboard inputs.
+    """
+    current_x = 0.0
+    current_y = 0.0
+    current_z = 0.0
+    current_rotation = 0
+    current_angle = 0.4
+
+    def on_press(key):
+        nonlocal current_x, current_y, current_z, current_rotation, current_angle
+        try:
+            if key.char == "w":
+                current_y += 0.1
+                current_y = min(max(current_y, 0), 1)
+                robot.move_xy(current_x, current_y)
+            elif key.char == "a":
+                current_x -= 0.1
+                current_x = min(max(current_x, 0), 1)
+                robot.move_xy(current_x, current_y)
+            elif key.char == "s":
+                current_y -= 0.1
+                current_y = min(max(current_y, 0), 1)
+                robot.move_xy(current_x, current_y)
+            elif key.char == "x":
+                current_y -= 0.05
+                current_y = min(max(current_y, 0), 1)
+                robot.move_xy(current_x, current_y)
+            elif key.char == "z":
+                current_y -= 0.01
+                current_y = min(max(current_y, 0), 1)
+                robot.move_xy(current_x, current_y)
+            elif key.char == "d":
+                current_x += 0.1
+                current_x = min(max(current_x, 0), 1)
+                robot.move_xy(current_x, current_y)
+            elif key.char == "r":
+                current_z += 0.1
+                current_z = min(max(current_z, 0), 1)
+                print(current_z)
+                robot.move_z(current_z)
+            elif key.char == "f":
+                current_z -= 0.1
+                current_z = min(max(current_z, 0), 1)
+                print(current_z)
+                robot.move_z(current_z)
+            elif key.char == "i":
+                current_angle += 0.05
+                current_angle = min(current_angle, 1)
+                print(current_angle)
+                robot.move_gripper(current_angle)
+            elif key.char == "o":
+                current_angle += 0.01
+                current_angle = min(current_angle, 1)
+                print(current_angle)
+                robot.move_gripper(current_angle)
+            elif key.char == "p":
+                current_angle -= 0.01
+                current_angle = max(current_angle, 0.2)
+                print(current_angle)
+                robot.move_gripper(current_angle)
+            elif key.char == "q":
+                current_rotation -= 10
+                robot.rotate(current_rotation)
+            elif key.char == "e":
+                current_rotation += 10
+                robot.rotate(current_rotation)
+            elif key.char == "n":
+                robot.gripper_open()
+                time.sleep(1)
+                robot.move_z(0)
+                time.sleep(1)
+                robot.move_gripper(0.5)
+                time.sleep(1)
+                robot.move_z(1)
+                time.sleep(1)
+                robot.move_xy(min(current_x + 0.2, 1), min(current_y + 0.2, 1))
+                time.sleep(1)
+                robot.move_xy(current_x, current_y)
+                time.sleep(1)
+                robot.move_z(0)
+                time.sleep(1)
+            elif key.char == "b":
+                state = RobotActivity.FINISHED
+        except Exception as e:
+            print(e)
+
+    def on_release(key):
+        if key == keyboard.Key.esc:
+            # Stop listener
+            return False
+
+    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+        listener.join()
+
+
+def clear_center(robot):
+    """
+    Clear the center area of the workspace.
+    """
+    print("clearing center")
+    commands = [
+        (OrderType.MOVE_Z, [1]),
+        (OrderType.GRIPPER_CLOSE, []),
+        (OrderType.MOVE_XY, [0.3, 0.3]),
+        (OrderType.MOVE_Z, [0.4]),
+        (OrderType.MOVE_XY, [0.5, 0.3]),
+        (OrderType.MOVE_XY, [0.5, 0.7]),
+        (OrderType.MOVE_XY, [0.3, 0.7]),
+        (OrderType.MOVE_Z, [0.1]),
+        (OrderType.MOVE_XY, [0.3, 0.5]),
+        (OrderType.MOVE_XY, [0.7, 0.5]),
+        (OrderType.MOVE_XY, [0.3, 0.3]),
+        (OrderType.MOVE_XY, [0.5, 0.5]),
+        (OrderType.MOVE_XY, [0.7, 0.7]),
+        (OrderType.MOVE_XY, [0.7, 0.5]),
+        (OrderType.MOVE_XY, [0.7, 0.3]),
+        (OrderType.MOVE_XY, [0.5, 0.5]),
+        (OrderType.MOVE_XY, [0.3, 0.7]),
+        (OrderType.MOVE_Z, [1]),
+    ]
+
+    queue_orders(robot, commands, 1)
+    print("clearing center complete")

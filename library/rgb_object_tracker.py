@@ -25,6 +25,12 @@ def all_objects_are_visible(objects, image, DEBUG=False):
     return True
 
 
+def get_object_pos(robot_idx, color, debug=False):
+    cam_position = object_tracking(bottom_image, color, DEBUG=debug)
+
+    return cam_to_robot(robot_idx, cam_position)
+
+
 def object_tracking(
     image,
     color="red",
