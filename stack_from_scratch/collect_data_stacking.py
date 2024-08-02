@@ -7,7 +7,6 @@ import logging
 from configparser import ConfigParser
 from typing import Optional
 import numpy as np
-from dotenv import load_dotenv  # Ensure environment variables are loaded
 
 from autograsper import Autograsper, RobotActivity
 from recording import Recorder
