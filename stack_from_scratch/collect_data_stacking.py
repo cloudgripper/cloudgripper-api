@@ -1,15 +1,16 @@
 import argparse
+import logging
 import os
 import threading
 import time
 import traceback
-import logging
 from configparser import ConfigParser
-from typing import Optional
-import numpy as np
+from typing import Optional, Tuple
 
+import numpy as np
 from autograsper import Autograsper, RobotActivity
 from recording import Recorder
+
 from library.rgb_object_tracker import all_objects_are_visible
 
 # Initialize logger
@@ -39,13 +40,12 @@ def load_config(config_file: str = "config.ini") -> ConfigParser:
 
 
 def get_new_session_id(base_dir: str) -> int:
-    max_id = 0
-    if os.path.exists(base_dir):
-        for dir_name in os.listdir(base_dir):
-            if dir_name.isdigit():
-                session_id = int(dir_name)
-                max_id = max(max_id, session_id)
-    return max_id + 1
+    if not os.path.exists(base_dir):
+        return 1
+    session_ids = [
+        int(dir_name) for dir_name in os.listdir(base_dir) if dir_name.isdigit()
+    ]
+    return max(session_ids, default=0) + 1
 
 
 def handle_error(exception: Exception) -> None:
@@ -61,7 +61,7 @@ def run_autograsper(
     position_bank,
     stack_position,
     object_size,
-):
+) -> None:
     try:
         autograsper.run_grasping(
             colors, block_heights, position_bank, stack_position, object_size
@@ -82,14 +82,14 @@ def setup_recorder(output_dir: str, robot_idx: str, config: ConfigParser) -> Rec
     )
 
 
-def run_recorder(recorder: Recorder):
+def run_recorder(recorder: Recorder) -> None:
     try:
         recorder.record()
     except Exception as e:
         handle_error(e)
 
 
-def monitor_state(autograsper: Autograsper, shared_state: SharedState):
+def monitor_state(autograsper: Autograsper, shared_state: SharedState) -> None:
     try:
         while not ERROR_EVENT.is_set():
             with STATE_LOCK:
@@ -102,12 +102,11 @@ def monitor_state(autograsper: Autograsper, shared_state: SharedState):
         handle_error(e)
 
 
-def is_stacking_successful(recorder: Recorder) -> bool:
-    colors = ["red", "green"]
+def is_stacking_successful(recorder: Recorder, colors) -> bool:
     return not all_objects_are_visible(colors, recorder.bottom_image, DEBUG=False)
 
 
-def monitor_bottom_image(recorder: Recorder, autograsper: Autograsper):
+def monitor_bottom_image(recorder: Recorder, autograsper: Autograsper) -> None:
     try:
         while not ERROR_EVENT.is_set():
             if recorder and recorder.bottom_image is not None:
@@ -118,21 +117,20 @@ def monitor_bottom_image(recorder: Recorder, autograsper: Autograsper):
         handle_error(e)
 
 
-def create_new_data_point(script_dir: str) -> tuple:
+def create_new_data_point(script_dir: str) -> Tuple[str, str, str]:
     recorded_data_dir = os.path.join(script_dir, "recorded_data")
     new_session_id = get_new_session_id(recorded_data_dir)
     new_session_dir = os.path.join(recorded_data_dir, str(new_session_id))
-    os.makedirs(new_session_dir, exist_ok=True)
-
     task_dir = os.path.join(new_session_dir, "task")
     restore_dir = os.path.join(new_session_dir, "restore")
+
     os.makedirs(task_dir, exist_ok=True)
     os.makedirs(restore_dir, exist_ok=True)
 
     return new_session_dir, task_dir, restore_dir
 
 
-def main():
+def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Robot Controller")
     parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
     parser.add_argument(
@@ -141,14 +139,17 @@ def main():
         default="config.ini",
         help="Path to the configuration file",
     )
+    return parser.parse_args()
 
-    args = parser.parse_args()
+
+def initialize(args: argparse.Namespace) -> Tuple[Autograsper, ConfigParser, str]:
     config = load_config(args.config)
     script_dir = os.path.dirname(os.path.abspath(__file__))
-
     autograsper = Autograsper(args, output_dir="")
+    return autograsper, config, script_dir
 
-    # Load parameters from config
+
+def start_threads(autograsper: Autograsper, config: ConfigParser) -> None:
     colors = eval(config["experiment"]["colors"])
     block_heights = np.array(eval(config["experiment"]["block_heights"]))
     position_bank = eval(config["experiment"]["position_bank"])
@@ -173,80 +174,101 @@ def main():
     autograsper_thread.start()
     monitor_thread.start()
 
-    try:
-        prev_robot_activity = RobotActivity.STARTUP
-        while not ERROR_EVENT.is_set():
-            with STATE_LOCK:
-                if shared_state.state != prev_robot_activity:
-                    if prev_robot_activity != RobotActivity.STARTUP:
-                        if shared_state.recorder:
-                            shared_state.recorder.write_final_image()
+    return autograsper_thread, monitor_thread
 
-                    if shared_state.state == RobotActivity.ACTIVE:
-                        session_dir, task_dir, restore_dir = create_new_data_point(
-                            script_dir
+
+def handle_state_changes(
+    autograsper: Autograsper, config: ConfigParser, script_dir: str
+) -> None:
+    prev_robot_activity = RobotActivity.STARTUP
+    session_dir, task_dir, restore_dir = "", "", ""
+
+    while not ERROR_EVENT.is_set():
+        with STATE_LOCK:
+            if shared_state.state != prev_robot_activity:
+                if (
+                    prev_robot_activity != RobotActivity.STARTUP
+                    and shared_state.recorder
+                ):
+                    shared_state.recorder.write_final_image()
+
+                if shared_state.state == RobotActivity.ACTIVE:
+                    session_dir, task_dir, restore_dir = create_new_data_point(
+                        script_dir
+                    )
+                    autograsper.output_dir = task_dir
+
+                    if not shared_state.recorder:
+                        shared_state.recorder = setup_recorder(
+                            task_dir, args.robot_idx, config
                         )
-                        autograsper.output_dir = task_dir
+                        shared_state.recorder_thread = threading.Thread(
+                            target=run_recorder, args=(shared_state.recorder,)
+                        )
+                        shared_state.recorder_thread.start()
+                        shared_state.bottom_image_thread = threading.Thread(
+                            target=monitor_bottom_image,
+                            args=(shared_state.recorder, autograsper),
+                        )
+                        shared_state.bottom_image_thread.start()
 
-                        if not shared_state.recorder:
-                            shared_state.recorder = setup_recorder(
-                                task_dir, args.robot_idx, config
-                            )
-                            shared_state.recorder_thread = threading.Thread(
-                                target=run_recorder, args=(shared_state.recorder,)
-                            )
-                            shared_state.recorder_thread.start()
-                            shared_state.bottom_image_thread = threading.Thread(
-                                target=monitor_bottom_image,
-                                args=(shared_state.recorder, autograsper),
-                            )
-                            shared_state.bottom_image_thread.start()
+                    shared_state.recorder.start_new_recording(task_dir)
+                    time.sleep(0.5)
+                    autograsper.start_flag = True
 
-                        shared_state.recorder.start_new_recording(task_dir)
-                        time.sleep(0.5)
-                        autograsper.start_flag = True
+                elif shared_state.state == RobotActivity.RESETTING:
+                    status_message = (
+                        "success"
+                        if is_stacking_successful(shared_state.recorder, colors)
+                        else "fail"
+                    )
+                    if status_message == "fail":
+                        autograsper.failed = True
 
-                    elif shared_state.state == RobotActivity.RESETTING:
-                        status_message = "success"
-                        if not is_stacking_successful(shared_state.recorder):
-                            status_message = "fail"
-                            autograsper.failed = True
+                    logger.info(status_message)
+                    with open(
+                        os.path.join(session_dir, "status.txt"), "w"
+                    ) as status_file:
+                        status_file.write(status_message)
 
-                        logger.info(status_message)
-                        with open(
-                            os.path.join(session_dir, "status.txt"), "w"
-                        ) as status_file:
-                            status_file.write(status_message)
+                    autograsper.output_dir = restore_dir
+                    shared_state.recorder.start_new_recording(restore_dir)
 
-                        autograsper.output_dir = restore_dir
-                        shared_state.recorder.start_new_recording(restore_dir)
+                prev_robot_activity = shared_state.state
 
-                    prev_robot_activity = shared_state.state
+            if shared_state.state == RobotActivity.FINISHED:
+                if shared_state.recorder:
+                    shared_state.recorder.stop()
+                    time.sleep(1)
+                    shared_state.recorder_thread.join()
+                    shared_state.bottom_image_thread.join()
+                break
 
-                if shared_state.state == RobotActivity.FINISHED:
-                    if shared_state.recorder:
-                        shared_state.recorder.stop()
-                        time.sleep(1)
-                        shared_state.recorder_thread.join()
-                        shared_state.bottom_image_thread.join()
-                    break
 
-        logger.info("Final robot activity: %s", prev_robot_activity)
+def cleanup(
+    autograsper_thread: threading.Thread, monitor_thread: threading.Thread
+) -> None:
+    ERROR_EVENT.set()
+    autograsper_thread.join()
+    monitor_thread.join()
+    if shared_state.recorder_thread and shared_state.recorder_thread.is_alive():
+        shared_state.recorder_thread.join()
+    if shared_state.bottom_image_thread and shared_state.bottom_image_thread.is_alive():
+        shared_state.bottom_image_thread.join()
 
+
+def main():
+    args = parse_arguments()
+    autograsper, config, script_dir = initialize(args)
+
+    autograsper_thread, monitor_thread = start_threads(autograsper, config)
+
+    try:
+        handle_state_changes(autograsper, config, script_dir)
     except Exception as e:
         handle_error(e)
-
     finally:
-        ERROR_EVENT.set()
-        autograsper_thread.join()
-        monitor_thread.join()
-        if shared_state.recorder_thread and shared_state.recorder_thread.is_alive():
-            shared_state.recorder_thread.join()
-        if (
-            shared_state.bottom_image_thread
-            and shared_state.bottom_image_thread.is_alive()
-        ):
-            shared_state.bottom_image_thread.join()
+        cleanup(autograsper_thread, monitor_thread)
 
 
 if __name__ == "__main__":
