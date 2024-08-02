@@ -79,8 +79,8 @@ def cleanup_files(input_directory):
 
 
 def main():
-    for x in range(1, 35):
-        input_directory = f"stack_from_scratch/recorded_data/{x}/task/Video/"  # Directory containing input MP4 files
+    for x in range(1, 206):
+        input_directory = f"stack_from_scratch/recorded_data/{x}/task/Bottom_Video/"  # Directory containing input MP4 files
 
         # Check if the input directory exists
         if not os.path.exists(input_directory):

@@ -16,15 +16,20 @@ def load_experiment_data(
     normal_video_path = os.path.join(task_path, "Video")
 
     # Path to final image and states.json
-    final_image_path = os.path.join(task_path, "Final_Image", "final_image_2.jpg")
     states_path = os.path.join(task_path, "states.json")
+    actions_path = os.path.join(task_path, "actions.json")
 
     # Load states.json
     with open(states_path, "r") as f:
         states = json.load(f)
 
-    # Get relevant states
+    # Load actions.json
+    with open(actions, "r") as f:
+        actions = json.load(f)
+
+    # Get relevant states and actions
     relevant_states = states[start_frame : end_frame + 1]
+    relevant_actions = actions[start_frame : end_frame + 1]
 
     # Function to load frames from videos
     def load_frames_from_videos(video_path, start_frame, end_frame):
@@ -62,17 +67,15 @@ def load_experiment_data(
     # Load frames from Video
     normal_frames = load_frames_from_videos(normal_video_path, start_frame, end_frame)
 
-    # Load final image
-    final_image = cv2.imread(final_image_path)
-
     return {
         "bottom_frames": bottom_frames,
         "normal_frames": normal_frames,
         "states": relevant_states,
-        "final_image": final_image,
+        "actions": relevant_actions,
     }
 
 
+"""
 # Example usage
 experiment_id = "1"
 start_frame = 25
@@ -89,4 +92,4 @@ from PIL import Image as im
 test_image = data["bottom_frames"][0]
 test_image = im.fromarray(test_image)
 test_image.save('test_image.png')
-
+"""

@@ -1,9 +1,7 @@
-*.pyc
+*.mp4
+*/recorded_data/*
+**/task/*
 */*pycache*/*
-library/__pycache__/Camera2Robot.cpython-38.pyc
-library/__pycache__/utils.cpython-38.pyc
-library/__pycache__/rgb_object_tracker.cpython-38.pyc
-library/__pycache__/object_tracking.cpython-38.pyc
-library/__pycache__/calibration.cpython-38.pyc
-library/__pycache__/bottom_image_preprocessing.cpython-38.pyc
-library/__pycache__/__init__.cpython-38.pyc
+**/__pycache__/
+**.hdf5
+

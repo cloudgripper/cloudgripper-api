@@ -3,9 +3,9 @@ import os
 import time
 from enum import Enum
 from typing import Any, List, Optional, Tuple
-from pynput import keyboard
 
 import numpy as np
+from pynput import keyboard
 
 from client.cloudgripper_client import GripperRobot
 from library.calibration import undistort
@@ -147,7 +147,6 @@ def queue_orders_with_input(
     robot: GripperRobot,
     order_list: List[Tuple[OrderType, List[float]]],
     output_dir: str = "",
-    start_time: float = -1.0,
 ):
     """
     Queue a list of orders for the robot to execute sequentially, waiting for user input between each command, and save state after each order.
@@ -422,8 +421,6 @@ def manual_control(robot):
                 time.sleep(1)
                 robot.move_z(0)
                 time.sleep(1)
-            elif key.char == "b":
-                state = RobotActivity.FINISHED
         except Exception as e:
             print(e)
 

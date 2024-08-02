@@ -1,4 +1,3 @@
-
 from client.cloudgripper_client import GripperRobot
 import time
 import sys
@@ -11,16 +10,16 @@ import numpy as np
 load_dotenv()
 
 # Get the CloudGripper API token from environment variables
-token = os.getenv('CLOUDGRIPPER_TOKEN')
+token = os.getenv("CLOUDGRIPPER_TOKEN")
 
 # Create a GripperRobot instance
-robotName = 'robot23'
+robotName = "robot23"
 robot = GripperRobot(robotName, token)
 
 # Function to display multiple images using OpenCV
 
 
-def display_images(images, window_name='Robot Images'):
+def display_images(images, window_name="Robot Images"):
     # Get dimensions of the first image
     height, width = images[0].shape[:2]
 

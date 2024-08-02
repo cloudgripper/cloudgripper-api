@@ -15,12 +15,8 @@ if project_root not in sys.path:
 # Import project-specific modules
 from client.cloudgripper_client import GripperRobot
 from library.rgb_object_tracker import all_objects_are_visible, get_object_pos
-from library.utils import (
-    OrderType,
-    get_undistorted_bottom_image,
-    pick_random_positions,
-    queue_orders,
-)
+from library.utils import (OrderType, get_undistorted_bottom_image,
+                           pick_random_positions, queue_orders)
 
 # Load environment variables
 load_dotenv()
