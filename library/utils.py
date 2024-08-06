@@ -301,7 +301,7 @@ def get_undistorted_bottom_image(
     :param d: Distortion coefficients
     :return: An undistorted image
     """
-    image, _, _ = robot.get_image_base()
+    image, _ = robot.get_image_base()
     return undistort(image, m, d)
 
 

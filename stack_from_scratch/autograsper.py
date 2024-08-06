@@ -16,7 +16,7 @@ if project_root not in sys.path:
 from client.cloudgripper_client import GripperRobot
 from library.rgb_object_tracker import all_objects_are_visible, get_object_pos
 from library.utils import (OrderType, get_undistorted_bottom_image,
-                           pick_random_positions, queue_orders)
+                           pick_random_positions, queue_orders, clear_center)
 
 # Load environment variables
 load_dotenv()
@@ -185,7 +185,7 @@ class Autograsper:
         time.sleep(1)
 
     def recover_after_fail(self):
-        self.clear_center()
+        clear_center(self.robot)
 
     def wait_for_start_signal(self):
         """
@@ -226,6 +226,7 @@ class Autograsper:
         stack_height = 0
 
         for color, block_height in blocks:
+
             bottom_block_position = get_object_pos(
                 self.bottom_image, self.robot_idx, bottom_color
             )
@@ -278,7 +279,13 @@ class Autograsper:
                 self.wait_for_start_signal()
                 self.start_flag = False
 
-                self.stack_objects(colors, block_heights, stack_position)
+                # self.stack_objects(colors, block_heights, stack_position)
+                self.robot.move_xy(0.5, 0.5)
+                time.sleep(1)
+                self.robot.move_xy(0.9, 0.2)
+                time.sleep(1)
+                self.robot.move_xy(0.1, 0.5)
+                time.sleep(2)
 
                 self.go_to_start()
                 time.sleep(1)
@@ -306,6 +313,7 @@ class Autograsper:
                 print(
                     f"Run grasping loop: An exception of type {type(e).__name__} occurred. Arguments: {e.args}"
                 )
+                raise Exception("Autograsping failed")
 
     def go_to_start(self):
         """

@@ -33,7 +33,7 @@ class SharedState:
 shared_state = SharedState()
 
 
-def load_config(config_file: str = "config.ini") -> ConfigParser:
+def load_config(config_file: str = "stack_from_scratch/config.ini") -> ConfigParser:
     config = ConfigParser()
     config.read(config_file)
     return config
@@ -103,7 +103,7 @@ def monitor_state(autograsper: Autograsper, shared_state: SharedState) -> None:
 
 
 def is_stacking_successful(recorder: Recorder, colors) -> bool:
-    return not all_objects_are_visible(colors, recorder.bottom_image, DEBUG=False)
+    return not all_objects_are_visible(colors, recorder.bottom_image, debug=False)
 
 
 def monitor_bottom_image(recorder: Recorder, autograsper: Autograsper) -> None:
@@ -143,7 +143,7 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def initialize(args: argparse.Namespace) -> Tuple[Autograsper, ConfigParser, str]:
-    config = load_config(args.config)
+    config = load_config()
     script_dir = os.path.dirname(os.path.abspath(__file__))
     autograsper = Autograsper(args, output_dir="")
     return autograsper, config, script_dir

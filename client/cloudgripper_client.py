@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 from requests import exceptions, get
 
-api_address_robots = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/robot" for i in range(1, 33)}
 
 class GripperRobot:
     """
@@ -19,10 +18,7 @@ class GripperRobot:
         order_count (int): Counter for the number of orders sent to the robot.
     """
 
-    api_address_robots = {
-        f"robot{i}": f"https://cloudgripper.zahidmhd.com/robot{i}/api/v1.1/robot"
-        for i in range(1, 33)
-    }
+    api_address_robots = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/robot" for i in range(1, 33)}
 
     def __init__(self, name: str, token: str):
         """
@@ -218,7 +214,7 @@ class GripperRobot:
 
     def _get_image(
         self, endpoint: str
-    ) -> Tuple[Optional[np.ndarray], Optional[str], Optional[str]]:
+    ) -> Tuple[Optional[np.ndarray], Optional[str]]:
         """
         Retrieve an image from the robot's camera.
 
@@ -234,10 +230,10 @@ class GripperRobot:
 
         if image_data:
             image = self._decode_image(image_data)
-            return image, time_stamp, image_data
+            return image, time_stamp
         else:
             print("Image not available")
-            return None, None, None
+            return None, None
 
     def get_image_base(
         self,
@@ -248,9 +244,9 @@ class GripperRobot:
         Returns:
             Tuple[Optional[np.ndarray], Optional[str], Optional[str]]: The image as a numpy array, the timestamp, and the raw base64 image data.
         """
-        image, time_stamp, image_data = self._get_image("getImageBase")
+        image, time_stamp = self._get_image("getImageBase")
 
-        return image, time_stamp, image_data
+        return image, time_stamp
 
     def get_image_top(self) -> Tuple[Optional[np.ndarray], Optional[str]]:
         """

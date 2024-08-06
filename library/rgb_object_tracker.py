@@ -4,14 +4,15 @@ import os
 
 import cv2
 import numpy as np
-from Camera2Robot import cam_to_robot
+
+from library.Camera2Robot import cam_to_robot
 
 
 class ColorNotFoundError(Exception):
     """Exception raised when a color is not found in the configuration."""
 
 
-def load_color_ranges(config_file="color_config.ini"):
+def load_color_ranges(config_file="library/color_config.ini"):
     """
     Load color ranges from a configuration file.
 
@@ -48,13 +49,12 @@ def test_calibration(image, colors, color_ranges):
         object_tracking(
             image,
             color,
-            color_ranges,
             debug=True,
             debug_image_path=f"debug_{color}.png",
         )
 
 
-def all_objects_are_visible(objects, image, color_ranges, debug=False):
+def all_objects_are_visible(objects, image, debug=False):
     """
     Check if all objects are visible in the image.
 
@@ -67,20 +67,21 @@ def all_objects_are_visible(objects, image, color_ranges, debug=False):
     Returns:
         bool: True if all objects are visible, False otherwise.
     """
+
     for obj in objects:
         try:
-            if object_tracking(image, obj, color_ranges, debug=debug) is None:
+            if object_tracking(image, obj, debug=debug) is None:
                 if debug:
                     print("Block not found:", obj)
                 return False
         except Exception as e:
-            print(e)
+            print("all_objects_are_visible: ", e)
             print(obj)
-            return False
+            raise Exception(e)
     return True
 
 
-def get_object_pos(bottom_image, robot_idx, color, color_ranges, debug=False):
+def get_object_pos(bottom_image, robot_idx, color, debug=False):
     """
     Get the position of an object in the image.
 
@@ -94,14 +95,13 @@ def get_object_pos(bottom_image, robot_idx, color, color_ranges, debug=False):
     Returns:
         ndarray: The position of the object in robot coordinates.
     """
-    cam_position = object_tracking(bottom_image, color, color_ranges, debug=debug)
+    cam_position = object_tracking(bottom_image, color, debug=debug)
     return cam_to_robot(robot_idx, cam_position)
 
 
 def object_tracking(
     image,
     color,
-    color_ranges,
     size_threshold=290,
     debug=False,
     debug_image_path="debug_image.png",
@@ -122,11 +122,13 @@ def object_tracking(
     """
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
+    color_ranges = load_color_ranges()
+
     try:
         lower1, upper1, lower2, upper2 = get_color_ranges(color, color_ranges)
     except ColorNotFoundError as e:
-        print(e)
-        return None
+        print("Object tracking: ", e)
+        raise ColorNotFoundError(e)
 
     blurred = cv2.GaussianBlur(hsv, (5, 5), 0)
     mask1 = cv2.inRange(blurred, lower1, upper1)
@@ -202,7 +204,6 @@ def get_large_contours(mask, size_threshold):
     """
     contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     return [c for c in contours if cv2.contourArea(c) > size_threshold]
-
 
 def get_contour_center(contours, debug, color, image, debug_image_path):
     """
