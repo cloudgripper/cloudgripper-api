@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 from requests import exceptions, get
 
+api_address_robots = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/robot" for i in range(1, 33)}
 
 class GripperRobot:
     """
