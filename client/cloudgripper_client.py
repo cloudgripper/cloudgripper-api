@@ -3,7 +3,7 @@ import cv2
 import base64
 import numpy as np
 
-api_address_robots = {f"robot{i}": f"https://cloudgripper.zahidmhd.com/robot{i}/api/v1.1/robot" for i in range(1, 33)}
+api_address_robots = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/robot" for i in range(1, 33)}
 
 class GripperRobot:
     global api_address_robots
