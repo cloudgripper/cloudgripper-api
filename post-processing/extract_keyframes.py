@@ -1,3 +1,4 @@
+
 import os
 import json
 import numpy as np
@@ -80,12 +81,29 @@ def post_process_results(results):
         return shifted_results
     return results  # If results length is 1 or less, return as is
 
+def save_results(task_dir, results):
+    """Save the results to a JSON file in the specified format."""
+    output = []
+    for order, _, state in results:
+        combined_entry = {
+            "x_norm": state['x_norm'],
+            "y_norm": state['y_norm'],
+            "z_norm": state['z_norm'],
+            "rotation": state['rotation'],
+            "claw_norm": state['claw_norm'],
+            "order_type": order['order_type'],
+            "order_value": order['order_value']
+        }
+        output.append(combined_entry)
+    
+    output_file = os.path.join(task_dir, 'state_order_combined.json')
+    with open(output_file, 'w') as f:
+        json.dump(output, f, indent=4)
+
 def main(root_dir):
     """Main function to iterate over all tasks."""
     base_dir = os.path.join(root_dir, 'stack_from_scratch', 'recorded_data')
     
-    all_results = {}
-
     task_numbers = sorted(os.listdir(base_dir))
     if task_numbers:
         first_task_number = task_numbers[0]
@@ -93,17 +111,8 @@ def main(root_dir):
         if os.path.isdir(task_dir):
             matching_states = process_task(task_dir)
             post_processed_results = post_process_results(matching_states)
-            all_results[first_task_number] = post_processed_results
-    
-    # Print results for the first task
-    for task_number, states in all_results.items():
-        print(f"Task {task_number}:")
-        for order, idx, state in states:
-            print(f"Order: {order}")
-            print(f"Matched Index: {idx}, State: {state}")
-            print("----")
-            print(" ")
-            print(" ")
+            save_results(task_dir, post_processed_results)
+
 if __name__ == "__main__":
     root_dir = "."
     main(root_dir)
