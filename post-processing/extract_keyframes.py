@@ -113,7 +113,7 @@ def extract_frames_and_save_video(task_dir, results, video_dir='Video', output_v
     frames_per_video = []
 
     # Directory to save individual frames
-    frames_output_dir = os.path.join(task_dir, 'extracted_frames')
+    frames_output_dir = os.path.join(task_dir, f'extracted_frames_{video_dir}')
     os.makedirs(frames_output_dir, exist_ok=True)
 
     # Calculate the total number of frames per video and overall total frames
@@ -165,13 +165,16 @@ def main(root_dir):
     
     task_numbers = sorted(os.listdir(base_dir))
     if task_numbers:
-        first_task_number = task_numbers[1]
+        first_task_number = task_numbers[8]
         task_dir = os.path.join(base_dir, first_task_number, 'task')
         if os.path.isdir(task_dir):
             matching_states = process_task(task_dir)
             post_processed_results = post_process_results(matching_states)
             save_results(task_dir, post_processed_results)
-            extract_frames_and_save_video(task_dir, post_processed_results)
+            
+            # Extract frames and save video for both Video and Bottom_Video directories
+            extract_frames_and_save_video(task_dir, post_processed_results, video_dir='Video', output_video='extracted_states_video.mp4')
+            extract_frames_and_save_video(task_dir, post_processed_results, video_dir='Bottom_Video', output_video='extracted_states_bottom_video.mp4')
 
 if __name__ == "__main__":
     root_dir = "."
