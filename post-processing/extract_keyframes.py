@@ -82,18 +82,18 @@ def post_process_results(results):
     return results  # If results length is 1 or less, return as is
 
 def save_results(task_dir, results):
-    """Save the results to a JSON file in the specified format."""
+    """Save the results to a JSON file in the specified format, rounding values to 2 decimal places."""
     output = []
     for order, index, state in results:
         combined_entry = {
             "state_index": index,  # Include the index of the state
-            "x_norm": state['x_norm'],
-            "y_norm": state['y_norm'],
-            "z_norm": state['z_norm'],
-            "rotation": state['rotation'],
-            "claw_norm": state['claw_norm'],
+            "x_norm": round(state['x_norm'], 2),
+            "y_norm": round(state['y_norm'], 2),
+            "z_norm": round(state['z_norm'], 2),
+            "rotation": round(state['rotation'], 2),
+            "claw_norm": round(state['claw_norm'], 2),
             "order_type": order['order_type'],
-            "order_value": order['order_value']
+            "order_value": [round(val, 2) for val in order['order_value']] if order['order_value'] else []
         }
         output.append(combined_entry)
     
@@ -113,8 +113,8 @@ def extract_frames_and_save_video(task_dir, results, video_dir='Video', output_v
     frames_per_video = []
 
     # Directory to save individual frames
-    frames_output_dir = os.path.join(task_dir, f'extracted_frames_{video_dir}')
-    os.makedirs(frames_output_dir, exist_ok=True)
+    #frames_output_dir = os.path.join(task_dir, f'extracted_frames_{video_dir}')
+    #os.makedirs(frames_output_dir, exist_ok=True)
 
     # Calculate the total number of frames per video and overall total frames
     for video_path in video_file_paths:
@@ -141,8 +141,8 @@ def extract_frames_and_save_video(task_dir, results, video_dir='Video', output_v
                 if ret:
                     frame_list.append(frame)
                     # Save individual frames
-                    frame_filename = os.path.join(frames_output_dir, f'frame_{idx:04d}.{frame_format}')
-                    cv2.imwrite(frame_filename, frame)
+                    #frame_filename = os.path.join(frames_output_dir, f'frame_{idx:04d}.{frame_format}')
+                    #cv2.imwrite(frame_filename, frame)
                 cap.release()
                 break
             cumulative_frames += frames
@@ -163,18 +163,17 @@ def main(root_dir):
     """Main function to iterate over all tasks."""
     base_dir = os.path.join(root_dir, 'stack_from_scratch', 'recorded_data')
     
-    task_numbers = sorted(os.listdir(base_dir))
-    if task_numbers:
-        first_task_number = task_numbers[8]
-        task_dir = os.path.join(base_dir, first_task_number, 'task')
-        if os.path.isdir(task_dir):
-            matching_states = process_task(task_dir)
-            post_processed_results = post_process_results(matching_states)
-            save_results(task_dir, post_processed_results)
-            
-            # Extract frames and save video for both Video and Bottom_Video directories
-            extract_frames_and_save_video(task_dir, post_processed_results, video_dir='Video', output_video='extracted_states_video.mp4')
-            extract_frames_and_save_video(task_dir, post_processed_results, video_dir='Bottom_Video', output_video='extracted_states_bottom_video.mp4')
+    task_dirs = [os.path.join(base_dir, d, 'task') for d in sorted(os.listdir(base_dir)) if os.path.isdir(os.path.join(base_dir, d, 'task'))]
+    
+    for task_dir in task_dirs:
+        print(f"Processing {task_dir}...")
+        matching_states = process_task(task_dir)
+        post_processed_results = post_process_results(matching_states)
+        save_results(task_dir, post_processed_results)
+        
+        # Extract frames and save video for both Video and Bottom_Video directories
+        extract_frames_and_save_video(task_dir, post_processed_results, video_dir='Video', output_video='extracted_states_video.mp4')
+        extract_frames_and_save_video(task_dir, post_processed_results, video_dir='Bottom_Video', output_video='extracted_states_bottom_video.mp4')
 
 if __name__ == "__main__":
     root_dir = "."
