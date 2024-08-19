@@ -54,13 +54,16 @@ def process_task(task_dir):
     orders = load_json(orders_file)
 
     matching_states = []
-    last_matched_index = 0
+    last_matched_index = None
 
     for order in orders:
-        match_index = find_matching_state(order, states, last_matched_index)
+        match_index = find_matching_state(order, states, last_matched_index + 1 if last_matched_index is not None else 0)
         if match_index is not None:
+            if last_matched_index is not None and match_index == last_matched_index + 1:
+                # Skip this match as it is consecutive to the last one
+                continue
             matching_states.append((order, match_index, states[match_index]))  # Store order, index, and state
-            last_matched_index = match_index + 1  # Update the start index for the next order
+            last_matched_index = match_index
         else:
             break  # If an order can't be matched, stop further processing
 
@@ -87,7 +90,6 @@ def main(root_dir):
             print(f"Order: {order}")
             print(f"Matched Index: {idx}, State: {state}")
             print("----")
-
             print(" ")
             print(" ")
 
