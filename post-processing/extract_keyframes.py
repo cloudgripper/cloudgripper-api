@@ -69,6 +69,17 @@ def process_task(task_dir):
 
     return matching_states
 
+def post_process_results(results):
+    """Shift orders one index back and remove the first order and last state."""
+    if len(results) > 1:
+        # Shift orders back by one index
+        shifted_results = [(results[i][0], results[i-1][1], results[i-1][2]) for i in range(1, len(results))]
+
+        # Remove the first order and last state
+        shifted_results.pop()  # Remove the last element (last state)
+        return shifted_results
+    return results  # If results length is 1 or less, return as is
+
 def main(root_dir):
     """Main function to iterate over all tasks."""
     base_dir = os.path.join(root_dir, 'stack_from_scratch', 'recorded_data')
@@ -81,7 +92,8 @@ def main(root_dir):
         task_dir = os.path.join(base_dir, first_task_number, 'task')
         if os.path.isdir(task_dir):
             matching_states = process_task(task_dir)
-            all_results[first_task_number] = matching_states
+            post_processed_results = post_process_results(matching_states)
+            all_results[first_task_number] = post_processed_results
     
     # Print results for the first task
     for task_number, states in all_results.items():
@@ -92,7 +104,6 @@ def main(root_dir):
             print("----")
             print(" ")
             print(" ")
-
 if __name__ == "__main__":
     root_dir = "."
     main(root_dir)
