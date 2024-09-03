@@ -20,7 +20,7 @@ class OrderType(Enum):
 
 def write_order(
     output_dir: str,
-    start_time: float,
+    order_time: float,
     previous_order: Optional[Tuple[Any, List[float]]] = None,
 ):
     """
@@ -41,7 +41,7 @@ def write_order(
     order = {
         "order_type": order_type.name,
         "order_value": order_value,
-        "time": start_time,
+        "time": order_time,
     }
 
     orders_file = os.path.join(output_dir, "orders.json")
