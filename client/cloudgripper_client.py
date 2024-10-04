@@ -289,10 +289,4 @@ class GripperRobot:
         state = self._safe_get(response, "state")
         time_state = self._safe_get(response, "time_state")
 
-        # Write the raw base64 data to files
-        # if image_base_data:
-        #     print("image base data type", type(image_base_data))
-        #     with open("all_base_image_base64.txt", "w") as f:
-        #         f.write(image_base_data)
-
         return image_top, image_base, state, time_state

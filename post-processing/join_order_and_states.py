@@ -58,3 +58,6 @@ if __name__ == "__main__":
 
     for task_number in range(start_range, end_range + 1):
         process_directory(base_path, task_number)
+
+# state information: round to 2 decimals
+# action information: take the value of the order from order.json, and fill in the missing values from the past state
