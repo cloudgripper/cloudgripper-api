@@ -102,62 +102,91 @@ def post_process_results(results):
 
 
 def save_results(task_dir, results):
-    """Save the results to a JSON file in the specified format, rounding values to 2 decimal places."""
-    output = []
-    previous_state = None
+    """Save the results to JSON files in the specified formats, rounding values to 2 decimal places."""
+    if not results:
+        return
 
-    for i, (order, index, state) in enumerate(results):
-        # Start with a copy of the current state
+    # Initialize current_order with the first state's values
+    current_order = {
+        "x_norm": results[0][2].get("x_norm", 0),
+        "y_norm": results[0][2].get("y_norm", 0),
+        "z_norm": results[0][2].get("z_norm", 0),
+        "rotation": results[0][2].get("rotation", 0),
+        "claw_norm": results[0][2].get("claw_norm", 0),
+    }
+
+    combined_output = []
+    states_output = []
+    orders_output = []
+
+    for order, index, state in results:
+        # Update current_order with order values where applicable
+        if order["order_type"] == "MOVE_XY":
+            current_order["x_norm"] = order["order_value"][0]
+            current_order["y_norm"] = order["order_value"][1]
+        elif order["order_type"] == "MOVE_Z":
+            current_order["z_norm"] = order["order_value"][0]
+        elif order["order_type"] == "GRIPPER_OPEN":
+            current_order["claw_norm"] = 1.0
+        elif order["order_type"] == "GRIPPER_CLOSE":
+            current_order["claw_norm"] = 0.21
+
+        # Create the combined entry with both the state and the updated order
         combined_entry = {
-            "state_index": index,  # Include the index of the state
-            "x_norm": state["x_norm"],
-            "y_norm": state["y_norm"],
-            "z_norm": state["z_norm"],
-            "rotation": state["rotation"],
-            "claw_norm": state["claw_norm"],
-            "order_type": order["order_type"],
-            "order_value": (
-                [round(val, 2) for val in order["order_value"]]
-                if order["order_value"]
-                else []
-            ),
+            "state_index": index,
+            "x_norm": round(state["x_norm"], 2),
+            "y_norm": round(state["y_norm"], 2),
+            "z_norm": round(state["z_norm"], 2),
+            "rotation": round(state["rotation"], 2),
+            "claw_norm": round(state["claw_norm"], 2),
+            "order": {
+                "x_norm": round(current_order.get("x_norm", 0), 2),
+                "y_norm": round(current_order.get("y_norm", 0), 2),
+                "z_norm": round(current_order.get("z_norm", 0), 2),
+                "rotation": round(current_order.get("rotation", 0), 2),
+                "claw_norm": round(current_order.get("claw_norm", 0), 2),
+            }
         }
 
-        # If there's a previous state, update the current state based on the previous order
-        if previous_state is not None:
-            prev_order = results[i - 1][0]  # Get the previous order
-            if prev_order["order_type"] == "MOVE_XY" and len(prev_order["order_value"]) == 2:
-                combined_entry["x_norm"] = round(prev_order["order_value"][0], 2)
-                combined_entry["y_norm"] = round(prev_order["order_value"][1], 2)
-                # Preserve the z_norm from the previous state
-                combined_entry["z_norm"] = previous_state["z_norm"]
+        # Create separate state and order entries
+        state_entry = {
+            "state_index": index,
+            "x_norm": round(state["x_norm"], 2),
+            "y_norm": round(state["y_norm"], 2),
+            "z_norm": round(state["z_norm"], 2),
+            "rotation": round(state["rotation"], 2),
+            "claw_norm": round(state["claw_norm"], 2),
+        }
 
-            elif prev_order["order_type"] == "MOVE_Z" and len(prev_order["order_value"]) == 1:
-                combined_entry["x_norm"] = previous_state["x_norm"]
-                combined_entry["y_norm"] = previous_state["y_norm"]
-                combined_entry["z_norm"] = round(prev_order["order_value"][0], 2)
+        order_entry = {
+            "x_norm": round(current_order.get("x_norm", 0), 2),
+            "y_norm": round(current_order.get("y_norm", 0), 2),
+            "z_norm": round(current_order.get("z_norm", 0), 2),
+            "rotation": round(current_order.get("rotation", 0), 2),
+            "claw_norm": round(current_order.get("claw_norm", 0), 2),
+        }
 
-            elif prev_order["order_type"] == "GRIPPER_OPEN":
-                combined_entry["claw_norm"] = 1.0
+        # Add entries to outputs
+        combined_output.append(combined_entry)
+        states_output.append(state_entry)
+        orders_output.append(order_entry)
 
-            elif prev_order["order_type"] == "GRIPPER_CLOSE":
-                combined_entry["claw_norm"] = 0.21
+    # Save the combined data
+    combined_file = os.path.join(task_dir, "extracted_combined.json")
+    with open(combined_file, "w") as f:
+        json.dump(combined_output, f, indent=4)
 
-        # Update the previous state to be the current combined entry
-        previous_state = combined_entry
+    # Save the states data
+    states_file = os.path.join(task_dir, "extracted_states.json")
+    with open(states_file, "w") as f:
+        json.dump(states_output, f, indent=4)
 
-        # Round the remaining values for consistency
-        combined_entry["x_norm"] = round(combined_entry["x_norm"], 2)
-        combined_entry["y_norm"] = round(combined_entry["y_norm"], 2)
-        combined_entry["z_norm"] = round(combined_entry["z_norm"], 2)
-        combined_entry["rotation"] = round(combined_entry["rotation"], 2)
-        combined_entry["claw_norm"] = round(combined_entry["claw_norm"], 2)
+    # Save the orders data
+    orders_file = os.path.join(task_dir, "extracted_orders.json")
+    with open(orders_file, "w") as f:
+        json.dump(orders_output, f, indent=4)
 
-        output.append(combined_entry)
 
-    output_file = os.path.join(task_dir, "state_order_combined.json")
-    with open(output_file, "w") as f:
-        json.dump(output, f, indent=4)
 
 
 def extract_frames_and_save_video(
@@ -230,15 +259,17 @@ def extract_frames_and_save_video(
 
 
 def main(root_dir):
-    """Main function to iterate over all tasks."""
+    """Main function to iterate over all tasks in detected directories."""
     base_dir = os.path.join(root_dir, "stack_from_scratch", "recorded_data")
 
+    # Detect directories named with integers and ensure task subdirectory exists
     task_dirs = [
         os.path.join(base_dir, d, "task")
-        for d in sorted(os.listdir(base_dir))
-        if os.path.isdir(os.path.join(base_dir, d, "task"))
+        for d in sorted(os.listdir(base_dir), key=lambda x: int(x) if x.isdigit() else float('inf'))
+        if d.isdigit() and os.path.isdir(os.path.join(base_dir, d, "task"))
     ]
 
+    # Process each detected task directory
     for task_dir in task_dirs:
         print(f"Processing {task_dir}...")
         matching_states = process_task(task_dir)
@@ -258,7 +289,6 @@ def main(root_dir):
             video_dir="Bottom_Video",
             output_video="extracted_states_bottom_video.mp4",
         )
-
 
 if __name__ == "__main__":
     root_dir = "."
