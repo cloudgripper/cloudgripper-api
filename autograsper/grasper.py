@@ -98,35 +98,39 @@ class AutograsperBase(ABC):
 
     def run_grasping(self):
         while self.state != RobotActivity.FINISHED:
+            self.go_to_start()
+            self.state = RobotActivity.ACTIVE
+
+            self.wait_for_start_signal()
+            self.start_flag = False
+
+            # Call task-specific method
             try:
-                self.go_to_start()
-                self.state = RobotActivity.ACTIVE
-
-                self.wait_for_start_signal()
-                self.start_flag = False
-
-                # Call task-specific method
                 self.perform_task()
+            except ValueError as e:
+                print(f"Error during perform_task: {e}")
+                self.failed = True
+            except Exception as e:
+                print(f"Unexpected error during perform_task: {e}")
+                # For unexpected exceptions, you might still want to exit
+                raise  # This will still cause the program to exit on unexpected errors
 
+            self.go_to_start()
+
+            time.sleep(1)
+            self.state = RobotActivity.RESETTING
+            time.sleep(1)
+
+            if self.failed:
+                print("Experiment failed, recovering")
+                self.recover_after_fail()
+                self.failed = False
+            else:
+                self.reset_task()
                 self.go_to_start()
 
-                time.sleep(1)
-                self.state = RobotActivity.RESETTING
-                time.sleep(1)
+            self.state = RobotActivity.STARTUP
 
-                if self.failed:
-                    print("Experiment failed, recovering")
-                    self.recover_after_fail()
-                    self.failed = False
-                else:
-                    self.reset_task()
-                    self.go_to_start()
-
-                self.state = RobotActivity.STARTUP
-
-            except Exception as e:
-                print(f"Run grasping loop: {e}")
-                raise Exception("Autograsping failed")
 
     @abstractmethod
     def perform_task(self):
