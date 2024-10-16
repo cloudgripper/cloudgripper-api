@@ -96,6 +96,8 @@ def get_object_pos(bottom_image, robot_idx, color, debug=False):
         ndarray: The position of the object in robot coordinates.
     """
     cam_position = object_tracking(bottom_image, color, debug=debug)
+    if cam_position is None:
+        raise ValueError(f"Object of color '{color}' not found in the image.")
     return cam_to_robot(robot_idx, cam_position)
 
 
@@ -237,27 +239,22 @@ def get_contour_center(contours, debug, color, image, debug_image_path):
 
 
 def debug_object_tracker(image, largest_contour, contours, cx, cy, debug_image_path):
-    """
-    Debug the object tracker by saving an image with the detected contours.
-
-    Parameters:
-        image (ndarray): The image to debug.
-        largest_contour (ndarray): The largest contour detected.
-        contours (list): List of all contours detected.
-        cx (int): X coordinate of the center.
-        cy (int): Y coordinate of the center.
-        debug_image_path (str): Path to save the debug image.
-    """
-    res = cv2.bitwise_and(
-        image,
-        image,
-        mask=cv2.drawContours(
-            np.zeros_like(image), [largest_contour], -1, 255, thickness=cv2.FILLED
-        ),
-    )
+    # Create a single-channel mask
+    mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    
+    # Draw the largest contour on the mask
+    cv2.drawContours(mask, [largest_contour], -1, 255, thickness=cv2.FILLED)
+    
+    # Apply the mask to the image
+    res = cv2.bitwise_and(image, image, mask=mask)
+    
+    # Draw debug info
     cv2.circle(res, (cx, cy), 5, (0, 0, 255), -1)
     cv2.drawContours(res, contours, -1, (0, 255, 0), 2)
+    
+    # Save the debug image
     cv2.imwrite(debug_image_path, res)
+
 
 
 def main():
