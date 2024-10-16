@@ -332,6 +332,8 @@ if __name__ == "__main__":
 
 ### Example Project: Large Scale Data Collection
 
+An example of a collected dataset with over 200 sessions can be found [here](https://drive.google.com/file/d/1bMfuvOPSTdM5wds8X5l6HQblZtYpMHCh/view?usp=sharing).
+
 The `collect_data_stacking.py` script demonstrates how to use the Autograsper and Recorder together to perform a large-scale data collection task. This example includes setting up the Autograsper and Recorder, monitoring the robot's state, and handling errors.
 
 #### Usage
