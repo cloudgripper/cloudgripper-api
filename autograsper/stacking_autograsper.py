@@ -53,6 +53,7 @@ class StackingAutograsper(AutograsperBase):
         # Implement task-specific code
         self.stack_objects(self.colors, self.block_heights, self.stack_position)
 
+
     def reset_task(self):
         # Implement task-specific reset
         random_reset_positions = pick_random_positions(
@@ -71,12 +72,17 @@ class StackingAutograsper(AutograsperBase):
         stack_height = 0
 
         for color, block_height in blocks:
-            bottom_block_position = get_object_pos(
-                self.bottom_image, self.robot_idx, bottom_color
-            )
-            object_position = get_object_pos(
-                self.bottom_image, self.robot_idx, color, debug=True
-            )
+            try:
+                bottom_block_position = get_object_pos(
+                    self.bottom_image, self.robot_idx, bottom_color
+                )
+                object_position = get_object_pos(
+                    self.bottom_image, self.robot_idx, color, debug=True
+                )
+            except ValueError as e:
+                print(f"Error finding object position for color '{color}': {e}")
+                self.failed = True
+                return  # Exit the function if an object is not found
 
             target_pos = (
                 bottom_block_position if color != bottom_color else stack_position
@@ -90,6 +96,7 @@ class StackingAutograsper(AutograsperBase):
             )
 
             stack_height += block_height
+
 
     def reset_blocks(
         self,
