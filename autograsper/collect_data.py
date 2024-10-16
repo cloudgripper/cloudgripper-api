@@ -55,10 +55,7 @@ def handle_error(exception: Exception) -> None:
 
 
 def run_autograsper(autograsper: StackingAutograsper) -> None:
-    try:
         autograsper.run_grasping()
-    except Exception as e:
-        handle_error(e)
 
 
 def setup_recorder(output_dir: str, robot_idx: str, config: ConfigParser) -> Recorder:
