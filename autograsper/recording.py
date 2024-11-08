@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class Recorder:
-    FPS = 3
+    FPS = 2
     FOURCC = cv2.VideoWriter_fourcc(*"mp4v")
 
     def __init__(
@@ -91,7 +91,7 @@ class Recorder:
                 time.sleep(1 / self.FPS)
                 self.save_state(self.robot)
                 self.frame_counter += 1
-                logging.info("Frames recorded: %d", self.frame_counter)
+                #logging.info("Frames recorded: %d", self.frame_counter)
 
                 cv2.imshow(f"ImageBottom_{self.robot_idx}", self.bottom_image)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
