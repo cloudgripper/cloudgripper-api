@@ -44,6 +44,7 @@ class Recorder:
         self.robot = GripperRobot(self.robot_idx, self.token)
         self.image_top, _ = self.robot.get_image_top()
         self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+        self.pause = False
 
         self._initialize_directories()
 
@@ -79,34 +80,45 @@ class Recorder:
         self._prepare_new_recording()
         try:
             while not self.stop_flag:
-                self._capture_frame()
-                if (
-                    start_new_video_every
-                    and self.frame_counter % start_new_video_every == 0
-                    and self.frame_counter != 0
-                ):
-                    self.video_counter += 1
-                    self._start_or_restart_video_writers()
+                if not self.pause:
+                    self._update()
+                    self._capture_frame()
+                    if (
+                        start_new_video_every
+                        and self.frame_counter % start_new_video_every == 0
+                        and self.frame_counter != 0
+                    ):
+                        self.video_counter += 1
+                        self._start_or_restart_video_writers()
 
-                time.sleep(1 / self.FPS)
-                self.save_state(self.robot)
-                self.frame_counter += 1
-                #logging.info("Frames recorded: %d", self.frame_counter)
+                    time.sleep(1 / self.FPS)
+                    self.save_state(self.robot)
+                    self.frame_counter += 1
+                    #logging.info("Frames recorded: %d", self.frame_counter)
 
-                cv2.imshow(f"ImageBottom_{self.robot_idx}", self.bottom_image)
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    self.stop_flag = True
+                    cv2.imshow(f"ImageBottom_{self.robot_idx}", self.bottom_image)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        self.stop_flag = True
         except Exception as e:
             logging.error("An error occurred: %s", e)
         finally:
             self._release_writers()
             cv2.destroyAllWindows()
+    
+    def _update(self) -> None:
+        print("update")
+        data = self.robot.get_all_states()
+
+        self.image_top = data[0]
+        self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+        self.timestamp = data[3]
+        self.state = data[2]
 
     def _capture_frame(self) -> None:
         """Capture frames from the robot's cameras and write directly to video file."""
         try:
-            image_top, _ = self.robot.get_image_top()
-            bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+            image_top = self.image_top
+            bottom_image = self.bottom_image
 
             if self.video_writer_top and self.video_writer_bottom:
                 self.video_writer_top.write(image_top)
@@ -114,8 +126,6 @@ class Recorder:
             else:
                 logging.warning("Video writers not initialized.")
 
-            self.image_top = image_top
-            self.bottom_image = bottom_image
         except Exception as e:
             logging.error("Error capturing frame: %s", e)
 
@@ -167,7 +177,7 @@ class Recorder:
     def save_state(self, robot: GripperRobot) -> None:
         """Save the state of the robot to a JSON file."""
         try:
-            state, timestamp = robot.get_state()
+            state, timestamp = self.state, self.timestamp
             state = convert_ndarray_to_list(state)
             state["time"] = timestamp
 
