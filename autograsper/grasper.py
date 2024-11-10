@@ -1,4 +1,3 @@
-# autograsper_base.py
 from abc import ABC, abstractmethod
 import os
 import sys
@@ -64,7 +63,7 @@ class AutograsperBase(ABC):
         except Exception as e:
             raise ValueError("Invalid robot ID or token") from e
 
-    def queue_robot_orders(self, orders: List[Tuple[OrderType, List]], delay: float):
+    def queue_robot_orders(self, orders: List[Tuple[OrderType, List]], delay: float=1):
         queue_orders(self.robot, orders, delay, output_dir=self.output_dir)
 
     def startup(self, position: List[float]):
@@ -94,7 +93,8 @@ class AutograsperBase(ABC):
             (OrderType.MOVE_Z, [1]),
             (OrderType.MOVE_XY, position),
         ]
-        self.queue_robot_orders(orders, 2)
+        self.queue_robot_orders(orders, 1)
+        self.robot.gripper_close()
 
     def run_grasping(self):
         while self.state != RobotActivity.FINISHED:
@@ -115,7 +115,7 @@ class AutograsperBase(ABC):
                 # For unexpected exceptions, you might still want to exit
                 raise  # This will still cause the program to exit on unexpected errors
 
-            self.go_to_start()
+            #self.go_to_start()
 
             time.sleep(1)
             self.state = RobotActivity.RESETTING
@@ -127,7 +127,7 @@ class AutograsperBase(ABC):
                 self.failed = False
             else:
                 self.reset_task()
-                self.go_to_start()
+                #self.go_to_start()
 
             self.state = RobotActivity.STARTUP
 
