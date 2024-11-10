@@ -1,4 +1,3 @@
-# collect_data_stacking.py
 import argparse
 import logging
 import os
@@ -9,6 +8,7 @@ from configparser import ConfigParser
 from typing import Optional, Tuple
 import numpy as np
 from stacking_autograsper import StackingAutograsper, RobotActivity
+from random_grasping_task import RandomGrasper
 from recording import Recorder
 
 from library.rgb_object_tracker import all_objects_are_visible
@@ -120,7 +120,7 @@ def create_new_data_point(script_dir: str) -> Tuple[str, str, str]:
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Robot Controller")
-    parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
+    parser.add_argument("--robot_idx", default="robot23", type=str, required=False, help="Robot index")
     parser.add_argument(
         "--config",
         type=str,
@@ -161,7 +161,7 @@ def initialize(
         print(f"Error parsing camera calibration parameters: {e}")
         raise
 
-    autograsper = StackingAutograsper(
+    autograsper = RandomGrasper(
         args,
         output_dir="",
         colors=colors,
@@ -211,6 +211,11 @@ def handle_state_changes(
                 ):
                     shared_state.recorder.write_final_image()
 
+                if shared_state.state == RobotActivity.STARTUP and prev_robot_activity != RobotActivity.STARTUP:
+                    shared_state.recorder.pause = True
+                    time.sleep(5)
+                    shared_state.recorder.pause = False
+
                 if shared_state.state == RobotActivity.ACTIVE:
                     session_dir, task_dir, restore_dir = create_new_data_point(
                         script_dir
@@ -236,15 +241,22 @@ def handle_state_changes(
                     autograsper.start_flag = True
 
                 elif shared_state.state == RobotActivity.RESETTING:
-                    status_message = (
-                        "success"
-                        if is_stacking_successful(
-                            shared_state.recorder, autograsper.colors
-                        )
-                        else "fail"
-                    )
-                    if status_message == "fail":
-                        autograsper.failed = True
+
+                    # STACKING. TODO: move this to generic
+                    # status_message = (
+                    #     "success"
+                    #     if is_stacking_successful(
+                    #         shared_state.recorder, autograsper.colors
+                    #     )
+                    #     else "fail"
+                    # )
+                    # if status_message == "fail":
+                    #     autograsper.failed = True
+
+                    if autograsper.failed:
+                        status_message = "fail"
+                    else:
+                        status_message = "success"
 
                     logger.info(status_message)
                     with open(
