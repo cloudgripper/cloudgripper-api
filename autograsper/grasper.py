@@ -75,14 +75,13 @@ class AutograsperBase(ABC):
             (OrderType.MOVE_XY, position),
         ]
         self.queue_robot_orders(startup_commands, 1)
-        time.sleep(1)
+        time.sleep(2)
 
     def recover_after_fail(self):
         clear_center(self.robot)
 
     def wait_for_start_signal(self):
         while not self.start_flag:
-            print("Waiting for start signal")
             time.sleep(0.1)
 
     def go_to_start(self):
@@ -112,14 +111,11 @@ class AutograsperBase(ABC):
                 self.failed = True
             except Exception as e:
                 print(f"Unexpected error during perform_task: {e}")
-                # For unexpected exceptions, you might still want to exit
-                raise  # This will still cause the program to exit on unexpected errors
+                raise
 
-            #self.go_to_start()
-
-            time.sleep(1)
+            time.sleep(2)
             self.state = RobotActivity.RESETTING
-            time.sleep(1)
+            time.sleep(2)
 
             if self.failed:
                 print("Experiment failed, recovering")
@@ -127,7 +123,6 @@ class AutograsperBase(ABC):
                 self.failed = False
             else:
                 self.reset_task()
-                #self.go_to_start()
 
             self.state = RobotActivity.STARTUP
 

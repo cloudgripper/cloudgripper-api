@@ -106,7 +106,7 @@ class Recorder:
             cv2.destroyAllWindows()
     
     def _update(self) -> None:
-        print("update")
+        # print("update")
         data = self.robot.get_all_states()
 
         self.image_top = data[0]
@@ -164,8 +164,9 @@ class Recorder:
 
     def _prepare_new_recording(self) -> None:
         """Prepare for a new recording session."""
-        self.frame_counter = 0
-        self.video_counter = 0
+        # TODO examine if this helps the segfaults
+        # self.frame_counter = 0
+        # self.video_counter = 0
         self.stop_flag = False
         self._start_or_restart_video_writers()
 

@@ -1,4 +1,3 @@
-# stacking_autograsper.py
 from grasper import AutograsperBase, RobotActivity
 from library.rgb_object_tracker import (
     get_object_pos,

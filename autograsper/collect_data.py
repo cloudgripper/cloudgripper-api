@@ -213,7 +213,7 @@ def handle_state_changes(
 
                 if shared_state.state == RobotActivity.STARTUP and prev_robot_activity != RobotActivity.STARTUP:
                     shared_state.recorder.pause = True
-                    time.sleep(5)
+                    time.sleep(10)
                     shared_state.recorder.pause = False
 
                 if shared_state.state == RobotActivity.ACTIVE:
@@ -242,7 +242,7 @@ def handle_state_changes(
 
                 elif shared_state.state == RobotActivity.RESETTING:
 
-                    # STACKING. TODO: move this to generic
+                    # this is for STACKING. TODO: generalize this functionality
                     # status_message = (
                     #     "success"
                     #     if is_stacking_successful(
