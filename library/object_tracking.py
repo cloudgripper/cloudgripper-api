@@ -10,7 +10,7 @@ def test_calibration(image, colors):
         object_tracking(image, color, DEBUG=True)
 
 
-def object_tracking(image, color="red", size_threshold=150, DEBUG=False):
+def object_tracking(image, color="red", size_threshold=150, DEBUG=True):
     positions = []
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)

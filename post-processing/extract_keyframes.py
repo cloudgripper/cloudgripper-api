@@ -25,6 +25,7 @@ def find_matching_state(order, states, start_idx):
     order_value = order.get("order_value", [])
 
     for idx in range(start_idx, len(states)):
+
         state = states[idx]
 
         if order_type == "MOVE_XY":
@@ -65,6 +66,22 @@ def process_task(task_dir):
     matching_states = []
     last_matched_index = None
 
+    # TODO if x/y values of first state is within epsilon of second state, add first state to matching states. Otherwise, add the second state
+    # In both cases, their matching order should be the first order
+
+    epsilon = 1e-4 
+
+    if len(states) >= 2:
+        first_state, second_state = states[0], states[1]
+        
+        if (
+            abs(first_state['x_norm'] - second_state['x_norm']) < epsilon and
+            abs(first_state['y_norm'] - second_state['y_norm']) < epsilon
+        ):
+            matching_states.append((orders[0], 0, first_state))
+        else:
+            matching_states.append((orders[0], 1, second_state))
+
     for order in orders:
         match_index = find_matching_state(
             order,
@@ -72,9 +89,9 @@ def process_task(task_dir):
             last_matched_index + 1 if last_matched_index is not None else 0,
         )
         if match_index is not None:
-            if last_matched_index is not None and match_index == last_matched_index + 1:
+            #  if last_matched_index is not None and match_index == last_matched_index + 1:
                 # Skip this match as it is consecutive to the last one
-                continue
+                # continue
             matching_states.append(
                 (order, match_index, states[match_index])
             )  # Store order, index, and state
@@ -95,7 +112,7 @@ def post_process_results(results):
         ]
 
         # Remove the first order and last state
-        shifted_results.pop()  # Remove the last element (last state)
+        #shifted_results.pop()  # Remove the last element (last state)
         return shifted_results
     return results  # If results length is 1 or less, return as is
 
@@ -209,8 +226,8 @@ def extract_frames_and_save_video(
     frames_per_video = []
 
     # Directory to save individual frames
-    #frames_output_dir = os.path.join(task_dir, f"extracted_frames_{video_dir}")
-    #os.makedirs(frames_output_dir, exist_ok=True)
+    frames_output_dir = os.path.join(task_dir, f"extracted_frames_{video_dir}")
+    os.makedirs(frames_output_dir, exist_ok=True)
 
     # Calculate the total number of frames per video and overall total frames
     for video_path in video_file_paths:
@@ -222,8 +239,9 @@ def extract_frames_and_save_video(
 
     # Determine the frame from which each state should be extracted
     for idx, (_, frame_index, _) in enumerate(results):
-        # Adjust frame index to be 3 frames behind
-        adjusted_frame_index = max(0, frame_index - 5)
+        # Adjust frame index to be x frames behind
+        frame_lag = 1
+        adjusted_frame_index = max(0, frame_index - frame_lag)
 
         cumulative_frames = 0
         for i, frames in enumerate(frames_per_video):
@@ -237,10 +255,10 @@ def extract_frames_and_save_video(
                 if ret:
                     frame_list.append(frame)
                     # Save individual frames
-                    # frame_filename = os.path.join(
-                    #     frames_output_dir, f"frame_{idx:04d}.{frame_format}"
-                    # )
-                    # cv2.imwrite(frame_filename, frame)
+                    frame_filename = os.path.join(
+                        frames_output_dir, f"frame_{idx:04d}.{frame_format}"
+                    )
+                    cv2.imwrite(frame_filename, frame)
                 cap.release()
                 break
             cumulative_frames += frames
@@ -260,7 +278,7 @@ def extract_frames_and_save_video(
 
 def main(root_dir):
     """Main function to iterate over all tasks in detected directories."""
-    base_dir = os.path.join(root_dir, "stack_from_scratch", "recorded_data")
+    base_dir = os.path.join(root_dir, "autograsper", "recorded_data")
 
     # Detect directories named with integers and ensure task subdirectory exists
     task_dirs = [
@@ -273,6 +291,7 @@ def main(root_dir):
     for task_dir in task_dirs:
         print(f"Processing {task_dir}...")
         matching_states = process_task(task_dir)
+        # post_processed_results = matching_states # post_process_results(matching_states)
         post_processed_results = post_process_results(matching_states)
         save_results(task_dir, post_processed_results)
 

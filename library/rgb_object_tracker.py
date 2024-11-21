@@ -35,7 +35,7 @@ def load_color_ranges(config_file="library/color_config.ini"):
     return color_ranges
 
 
-def test_calibration(image, colors, color_ranges):
+def test_calibration(image, colors, color_ranges=None):
     """
     Test the calibration for the specified colors in the image.
 
