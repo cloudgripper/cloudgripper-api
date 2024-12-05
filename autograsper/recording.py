@@ -42,8 +42,11 @@ class Recorder:
         self.video_writer_bottom = None
 
         self.robot = GripperRobot(self.robot_idx, self.token)
-        self.image_top, _ = self.robot.get_image_top()
-        self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
+        self.image_top = None
+        self.bottom_image = None
+        self._update()
+        # self.image_top, _ = self.robot.get_image_top()
+        # self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
         self.pause = False
 
         self._initialize_directories()
@@ -106,23 +109,21 @@ class Recorder:
             cv2.destroyAllWindows()
     
     def _update(self) -> None:
-        # print("update")
+        """Update images and state from the robot."""
         data = self.robot.get_all_states()
 
         self.image_top = data[0]
         self.bottom_image = get_undistorted_bottom_image(self.robot, self.m, self.d)
-        self.timestamp = data[3]
         self.state = data[2]
+        self.timestamp = data[3]
 
     def _capture_frame(self) -> None:
         """Capture frames from the robot's cameras and write directly to video file."""
         try:
-            image_top = self.image_top
-            bottom_image = self.bottom_image
 
             if self.video_writer_top and self.video_writer_bottom:
-                self.video_writer_top.write(image_top)
-                self.video_writer_bottom.write(bottom_image)
+                self.video_writer_top.write(self.image_top)
+                self.video_writer_bottom.write(self.bottom_image)
             else:
                 logging.warning("Video writers not initialized.")
 
@@ -175,10 +176,11 @@ class Recorder:
         self.stop_flag = True
         logging.info("Stop flag set to True")
 
-    def save_state(self, robot: GripperRobot) -> None:
+    def save_state(self) -> None:
         """Save the state of the robot to a JSON file."""
         try:
-            state, timestamp = self.state, self.timestamp
+            state = self.state.copy()
+            timestamp = self.timestamp
             state = convert_ndarray_to_list(state)
             state["time"] = timestamp
 
