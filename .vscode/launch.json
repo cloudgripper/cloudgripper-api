@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Collect data",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/workspaces/cloudgripper-api/autograsper/collect_data.py",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
