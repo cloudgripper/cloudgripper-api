@@ -77,9 +77,6 @@ class AutograsperBase(ABC):
         self.queue_robot_orders(startup_commands, 1)
         time.sleep(2)
 
-    def recover_after_fail(self):
-        clear_center(self.robot)
-
     def wait_for_start_signal(self):
         while not self.start_flag:
             time.sleep(0.1)
@@ -94,6 +91,9 @@ class AutograsperBase(ABC):
         ]
         self.queue_robot_orders(orders, 1)
         self.robot.gripper_close()
+        time.sleep(0.5)
+        self.robot.rotate(0)
+        time.sleep(0.5)
 
     def run_grasping(self):
         while self.state != RobotActivity.FINISHED:
@@ -126,6 +126,9 @@ class AutograsperBase(ABC):
 
             self.state = RobotActivity.STARTUP
 
+    @abstractmethod
+    def recover_after_fail(self):
+        pass
 
     @abstractmethod
     def perform_task(self):
