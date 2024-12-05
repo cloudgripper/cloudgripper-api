@@ -213,10 +213,6 @@ def extract_frames_and_save_video(
     for video_path in video_file_paths:
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            print(f"Error: Unable to open video file {video_path}. Deleting task directory.")
-            shutil.rmtree(task_dir)
-            return
-        if not cap.isOpened():
             print(f"Error: Unable to open video file {video_path}. Skipping.")
             continue
 
@@ -226,7 +222,7 @@ def extract_frames_and_save_video(
         cap.release()
 
     for idx, (_, frame_index, _) in enumerate(results):
-        frame_lag = 1
+        frame_lag = 2
         adjusted_frame_index = max(0, frame_index - frame_lag)
 
         cumulative_frames = 0
@@ -271,8 +267,7 @@ def extract_frames_and_save_video(
 
     if len(frame_list) < 4:
         print(f"Warning: Not enough frames extracted from {task_dir}. Deleting task directory.")
-        shutil.rmtree(task_dir)
-        return
+        # shutil.rmtree(task_dir)
         return
 
     if frame_list:
@@ -315,7 +310,7 @@ def process_task_concurrently(task_dir):
 
 def main(root_dir):
     """Main function to iterate over all tasks in detected directories."""
-    base_dir = os.path.join(root_dir, "autograsper", "merged_data_1")
+    base_dir = os.path.join(root_dir, "autograsper", "recorded_data")
 
     task_dirs = [
         os.path.join(base_dir, d, "task")
