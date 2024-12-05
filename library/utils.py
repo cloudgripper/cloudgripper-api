@@ -308,8 +308,9 @@ def get_undistorted_bottom_image(
 
 
 def run_calibration(height, robot):
+    robot.gripper_close()
     commands = [
-        (OrderType.GRIPPER_CLOSE, []),
+        # (OrderType.GRIPPER_CLOSE, []),
         (OrderType.MOVE_Z, [1.0]),
         (OrderType.MOVE_XY, [0.0, 0.0]),
         (OrderType.MOVE_Z, [height]),

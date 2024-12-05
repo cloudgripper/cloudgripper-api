@@ -68,11 +68,13 @@ class RandomGrasper(AutograsperBase):
     def perform_task(self):
 
         
+        # run_calibration(0.2, self.robot)
+        
 
         # test_calibration(self.bottom_image, ["red"])
         # self.robot.gripper_open()
 
-        manual_control(self.robot)
+        # manual_control(self.robot)
         # self.move_red_to_center()
 
         margin = 0.2
@@ -118,6 +120,10 @@ class RandomGrasper(AutograsperBase):
 
     def recover_after_fail(self):
 
+        self.go_to_start()
+    
+    def _reset_target_block(self):
+
         block_pos = self.generate_new_block_position()
 
         target_color = "green"
@@ -129,20 +135,14 @@ class RandomGrasper(AutograsperBase):
             0,
             target_position=block_pos,
         )
-        self.go_to_start()
+
 
     def reset_task(self):
-        self.recover_after_fail()
-        return
 
-        random_reset_positions = pick_random_positions(
-            self.position_bank, len(self.block_heights), self.object_size
-        )
-        self.reset_blocks(
-            random_reset_positions,
-            self.block_heights,
-            stack_position=self.stack_position,
-        )
+        self._reset_target_block()
+        self.go_to_start
+
+        return
 
     def pickup_and_place_object(
         self,
