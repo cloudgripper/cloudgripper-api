@@ -2,26 +2,57 @@ import os
 import cv2
 from PIL import Image
 import numpy as np
-from pynput import keyboard
 import glob
 
 # Set the root directory
 root_dir = "autograsper/recorded_data"
+
+# Helper function to get the last frame of the last video in the task/Video directory
+def get_last_frame(video_dir):
+    video_files = glob.glob(os.path.join(video_dir, "video_*.mp4"))
+    if not video_files:
+        return None
+
+    # Sort videos by numeric x value
+    video_files.sort(key=lambda x: int(os.path.basename(x).split("_")[-1].split(".")[0]), reverse=True)
+
+    frame = None
+    for video_file in video_files:
+        cap = cv2.VideoCapture(video_file)
+        if not cap.isOpened():
+            print(f"Failed to open video: {video_file}")
+            continue  # Try the next video
+
+        while True:
+            ret, current_frame = cap.read()
+            if not ret:
+                break
+            frame = current_frame  # Keep updating until the last frame
+
+        cap.release()
+
+        if frame is not None:
+            frame_path = os.path.join(video_dir, "last_frame.jpg")
+            cv2.imwrite(frame_path, frame)  # Save the frame to a temporary file
+            return frame_path
+
+    print(f"No valid videos found in: {video_dir}")
+    return None
 
 # Collect all successful tasks
 tasks = []
 for x_dir in os.listdir(root_dir):
     x_path = os.path.join(root_dir, x_dir)
     status_file = os.path.join(x_path, "status.txt")
-    image_pattern = os.path.join(x_path, "task/Final_Image/final_image_*.jpg")
-    image_files = glob.glob(image_pattern)
+    video_dir = os.path.join(x_path, "task/Video")
 
-    if os.path.isdir(x_path) and os.path.isfile(status_file) and image_files:
+    if os.path.isdir(x_path) and os.path.isfile(status_file) and os.path.isdir(video_dir):
         with open(status_file, "r") as file:
             status = file.read().strip()
             if status == "success":
-                # Pick the first matching image (or modify as needed to handle multiple)
-                tasks.append((x_dir, image_files[0], status_file))
+                last_frame_path = get_last_frame(video_dir)
+                if last_frame_path:
+                    tasks.append((x_dir, last_frame_path, status_file))
 
 # Initialize the task index
 task_index = 0
