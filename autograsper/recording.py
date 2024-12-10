@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class Recorder:
-    FPS = 2.5
+    FPS = 3.0
     FOURCC = cv2.VideoWriter_fourcc(*"mp4v")
 
     def __init__(
