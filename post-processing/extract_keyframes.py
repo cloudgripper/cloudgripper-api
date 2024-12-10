@@ -6,7 +6,6 @@ import numpy as np
 
 # Define epsilon for comparison
 EPSILON = 1e-2
-FRAME_LAG = 1
 
 
 def load_json(file_path):
@@ -29,8 +28,9 @@ def find_matching_state(order, states, start_idx):
     order_type = order["order_type"]
     order_value = order.get("order_value", [])
 
-    for idx in range(start_idx, len(states)):
+    for idx in range(start_idx - 1, len(states)):
 
+        idx = max(0, idx)
         state = states[idx]
 
         if order_type == "MOVE_XY":
@@ -53,7 +53,7 @@ def find_matching_state(order, states, start_idx):
 
         elif order_type == "GRIPPER_CLOSE":
             # Match with claw_norm close to 0.21
-            if compare_values(0.24, state["claw_norm"]) or compare_values(0.21, state["claw_norm"]):
+            if compare_values(0.30, state["claw_norm"]) or compare_values(0.25, state["claw_norm"]) or compare_values(0.24, state["claw_norm"]) or compare_values(0.21, state["claw_norm"]):
                 return idx
 
     return None
@@ -81,16 +81,30 @@ def process_task(task_dir):
 
     if len(states) >= 2:
         first_state, second_state = states[0], states[1]
+
+        first_addition = None
         
         if (
             abs(first_state['x_norm'] - second_state['x_norm']) < epsilon and
             abs(first_state['y_norm'] - second_state['y_norm']) < epsilon
         ):
-            matching_states.append((orders[0], 0, first_state))
+            first_addition = first_state
         else:
-            matching_states.append((orders[0], 1, second_state))
+            first_addition = second_state
+
+    # standardize starting values to cover sensory mistakes
+    first_addition['x_norm'] = 0.0
+    first_addition['y_norm'] = 0.7
+    first_addition['z_norm'] = 1.0
+    first_addition['claw_norm'] = 0.0
+    matching_states.append((orders[0], 1, first_addition))
+
 
     for order in orders:
+        if order["order_type"] == "MOVE_XY":
+            order["order_value"] = [max(0,n) for n in order["order_value"]]
+
+
         match_index = find_matching_state(
             order,
             states,
@@ -105,7 +119,13 @@ def process_task(task_dir):
             )  # Store order, index, and state
             last_matched_index = match_index
         else:
-            break  # If an order can't be matched, stop further processing
+            # if the order is the last, in grapsing case "GRIPPPER_CLOSE", add last frame
+            if order["order_type"] == "GRIPPER_CLOSE":
+                matching_states.append(
+                                (order, len(states)-1, states[-1])
+                            )
+            else:
+                break  # If an order can't be matched, stop further processing
 
     return matching_states
 
@@ -247,15 +267,27 @@ def extract_frames_and_save_video(
     
     print("frames in video:", total_frames)
 
+    # Adjust frame index to be x frames behind
+    if total_frames > 18: 
+        frame_lag = 1
+    elif total_frames > 13:
+        frame_lag = 2
+    else:
+        frame_lag = 3
+
+
     # Determine the frame from which each state should be extracted
     for idx, (_, frame_index, _) in enumerate(results):
-        # Adjust frame index to be x frames behind
-        adjusted_frame_index = max(0, frame_index - FRAME_LAG)
+        adjusted_frame_index = max(0, frame_index - frame_lag)
 
         cumulative_frames = 0
         for i, frames in enumerate(frames_per_video):
             if adjusted_frame_index < cumulative_frames + frames:
+
+
                 relative_frame_index = adjusted_frame_index - cumulative_frames
+
+
                 video_path = video_file_paths[i]
 
                 cap = cv2.VideoCapture(video_path)
@@ -306,6 +338,8 @@ def main(root_dir):
         # post_processed_results = matching_states # post_process_results(matching_states)
         post_processed_results = post_process_results(matching_states)
         save_results(task_dir, post_processed_results)
+        if len(post_processed_results) != 4:
+            print("fewer frames than expected")
 
         # Extract frames and save video for both Video and Bottom_Video directories
         extract_frames_and_save_video(
