@@ -205,11 +205,6 @@ def handle_state_changes(
     while not ERROR_EVENT.is_set():
         with STATE_LOCK:
             if shared_state.state != prev_robot_activity:
-                if (
-                    prev_robot_activity != RobotActivity.STARTUP
-                    and shared_state.recorder
-                ):
-                    shared_state.recorder.write_final_image()
 
                 if shared_state.state == RobotActivity.STARTUP and prev_robot_activity != RobotActivity.STARTUP:
                     shared_state.recorder.pause = True

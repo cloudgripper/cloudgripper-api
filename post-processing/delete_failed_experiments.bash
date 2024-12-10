@@ -7,7 +7,6 @@ delete_fail_subdirectories() {
   for item in "$base_directory"/*; do
     if [ -d "$item" ] && [[ $(basename "$item") =~ ^[0-9]+$ ]]; then
       status_file="$item/status.txt"
-      final_image_directory="$item/task/Final_Image"
 
       # Check if status.txt exists in the directory
       if [ -f "$status_file" ]; then
@@ -25,12 +24,6 @@ delete_fail_subdirectories() {
         echo "Created status.txt with content 'success' in $item"
       fi
 
-      # Check if Final_Image directory is empty
-      if [ -d "$final_image_directory" ] && [ -z "$(ls -A "$final_image_directory")" ]; then
-        # Delete the subdirectory
-        rm -rf "$item"
-        echo "Deleted directory due to empty Final_Image: $item"
-      fi
     fi
   done
 }

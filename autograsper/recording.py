@@ -55,10 +55,8 @@ class Recorder:
         """Initialize output directories."""
         self.output_video_dir = os.path.join(self.output_dir, "Video")
         self.output_bottom_video_dir = os.path.join(self.output_dir, "Bottom_Video")
-        self.final_image_dir = os.path.join(self.output_dir, "Final_Image")
         os.makedirs(self.output_video_dir, exist_ok=True)
         os.makedirs(self.output_bottom_video_dir, exist_ok=True)
-        os.makedirs(self.final_image_dir, exist_ok=True)
 
     def _start_new_video(self) -> Tuple[cv2.VideoWriter, cv2.VideoWriter]:
         """Start new video writers for top and bottom cameras."""
@@ -95,7 +93,7 @@ class Recorder:
                         self._start_or_restart_video_writers()
 
                     time.sleep(1 / self.FPS)
-                    self.save_state(self.robot)
+                    self.save_state()
                     self.frame_counter += 1
                     #logging.info("Frames recorded: %d", self.frame_counter)
 
@@ -143,18 +141,6 @@ class Recorder:
         if self.video_writer_bottom:
             self.video_writer_bottom.release()
             self.video_writer_bottom = None
-
-    def write_final_image(self) -> None:
-        """Write the final image from the top camera."""
-        try:
-            logging.info("Writing final image")
-            image_top, _ = self.robot.get_image_top()
-            final_image_path = os.path.join(
-                self.final_image_dir, f"final_image_{self.video_counter}.jpg"
-            )
-            cv2.imwrite(final_image_path, image_top)
-        except Exception as e:
-            logging.error("Error writing final image: %s", e)
 
     def start_new_recording(self, new_output_dir: str) -> None:
         """Start a new recording session with a new output directory."""
