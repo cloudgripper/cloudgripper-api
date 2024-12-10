@@ -105,9 +105,9 @@ def execute_order(
                 robot.order_count += 1
             else:
                 current_position = 0.3
-                end_position = 0.20
-                step = 0.02
-                wait_time = 0.05
+                end_position = 0.24
+                step = 0.04
+                wait_time = 0.1
                 start_time = robot.move_gripper(current_position)
                 while current_position >= end_position:
                     robot.order_count += 1
