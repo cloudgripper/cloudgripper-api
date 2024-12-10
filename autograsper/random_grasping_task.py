@@ -78,25 +78,38 @@ class RandomGrasper(AutograsperBase):
         # self.move_red_to_center()
 
         margin = 0.2
-        random_position = self.generate_new_block_position()
+        # random_position = self.generate_new_block_position()
+        random_position = [0,0]
+
+        d_x = np.random.uniform(-0.08,0.08)
+        d_y = np.random.uniform(-0.08,0.08)
+
+        object_position = get_object_pos(
+            self.bottom_image, self.robot_idx, "green", debug=True)
+        
+        random_position[0] = object_position[0] + d_x
+        random_position[1] = object_position[1] + d_y
+
         x = random_position[0]
         y = random_position[1]
+
 
 
         self.queue_robot_orders([
             (OrderType.MOVE_XY, random_position),
             (OrderType.GRIPPER_OPEN, []),
             (OrderType.MOVE_Z, [0]),
-            (OrderType.GRIPPER_CLOSE, [])], delay=3.0
+            (OrderType.GRIPPER_CLOSE, [])], delay=4.0
         )
 
 
         object_position = get_object_pos(
             self.bottom_image, self.robot_idx, "green", debug=True)
         if (
-            abs(x - 0.5) > margin
-            and abs(y - 0.5) > margin
-            and np.linalg.norm(np.array(random_position) - np.array(object_position)) < 0.12
+            # abs(x - 0.5) > margin
+            # and abs(y - 0.5) > margin
+            # and np.linalg.norm(np.array(random_position) - np.array(object_position)) < 0.12
+            np.linalg.norm(np.array(random_position) - np.array(object_position)) < 0.12
         ):
             self.failed = False
             print("succesful grasp")
@@ -111,8 +124,8 @@ class RandomGrasper(AutograsperBase):
 
         margin = 0.2
         while True:
-            x = random.uniform(0.1, 0.9)
-            y = random.uniform(0.1, 0.9)
+            x = random.uniform(0.2, 0.8)
+            y = random.uniform(0.2, 0.8)
             if abs(x - 0.5) > margin and abs(y - 0.5) > margin:
                 break
 
@@ -120,6 +133,8 @@ class RandomGrasper(AutograsperBase):
 
     def recover_after_fail(self):
 
+        self.robot.gripper_open()
+        time.sleep(0.5)
         self.go_to_start()
     
     def _reset_target_block(self):
@@ -135,6 +150,13 @@ class RandomGrasper(AutograsperBase):
             0,
             target_position=block_pos,
         )
+
+        margin = 0.1
+        red_position = get_object_pos(
+            self.bottom_image, self.robot_idx, "red", debug=False)
+
+        if abs(red_position[0] - 0.5) > margin and abs(red_position[1] - 0.5) > margin:
+            self.move_red_to_center()
 
 
     def reset_task(self):
@@ -204,7 +226,7 @@ class RandomGrasper(AutograsperBase):
                     self.bottom_image, self.robot_idx, bottom_color
                 )
                 object_position = get_object_pos(
-                    self.bottom_image, self.robot_idx, color, debug=True
+                    self.bottom_image, self.robot_idx, color, debug=False
                 )
             except ValueError as e:
                 print(f"Error finding object position for color '{color}': {e}")
