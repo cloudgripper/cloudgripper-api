@@ -2,10 +2,10 @@
 	// For quick reference: https://containers.dev/implementors/json_reference/
 	"name": "Miniforge3",
 	"image": "condaforge/miniforge3:24.3.0-0",
-	//"build": {
-	//	"context": "..",
-	//	"dockerfile": "Dockerfile"
-	//},
+	"build": {
+		"context": "..",
+		"dockerfile": "Dockerfile"
+	},
 
 	// 1. Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": []
@@ -49,7 +49,8 @@
 			"version": "os-provided",
 			"ppa": "false"
 		},
-		"ghcr.io/devcontainers/features/python:1": {}
+		"ghcr.io/devcontainers/features/python:1": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
 	},
 
 	// 5. Configure tool-specific properties.
