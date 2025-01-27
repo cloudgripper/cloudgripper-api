@@ -3,3 +3,5 @@ opencv-python
 numpy
 pybase64
 python-dotenv
+pynput
+matplotlib
