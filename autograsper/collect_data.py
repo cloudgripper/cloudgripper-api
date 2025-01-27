@@ -7,6 +7,7 @@ import traceback
 from configparser import ConfigParser
 from typing import Optional, Tuple
 import numpy as np
+from grasper import AutograsperBase
 from stacking_autograsper import StackingAutograsper, RobotActivity
 from random_grasping_task import RandomGrasper
 from recording import Recorder
@@ -56,7 +57,7 @@ def handle_error(exception: Exception) -> None:
     ERROR_EVENT.set()
 
 
-def run_autograsper(autograsper: StackingAutograsper) -> None:
+def run_autograsper(autograsper: AutograsperBase) -> None:
         autograsper.run_grasping()
 
 
@@ -79,7 +80,7 @@ def run_recorder(recorder: Recorder) -> None:
         handle_error(e)
 
 
-def monitor_state(autograsper: StackingAutograsper, shared_state: SharedState) -> None:
+def monitor_state(autograsper: AutograsperBase, shared_state: SharedState) -> None:
     try:
         while not ERROR_EVENT.is_set():
             with STATE_LOCK:
@@ -96,7 +97,7 @@ def is_stacking_successful(recorder: Recorder, colors) -> bool:
     return not all_objects_are_visible(colors, recorder.bottom_image, debug=False)
 
 
-def monitor_bottom_image(recorder: Recorder, autograsper: StackingAutograsper) -> None:
+def monitor_bottom_image(recorder: Recorder, autograsper: AutograsperBase) -> None:
     try:
         while not ERROR_EVENT.is_set():
             if recorder and recorder.bottom_image is not None:
@@ -134,7 +135,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def initialize(
     args: argparse.Namespace,
-) -> Tuple[StackingAutograsper, ConfigParser, str]:
+) -> Tuple[AutograsperBase, ConfigParser, str]:
     import ast
 
     config = load_config(args.config)
@@ -178,7 +179,7 @@ def initialize(
 
 
 def start_threads(
-    autograsper: StackingAutograsper,
+    autograsper: AutograsperBase,
 ) -> Tuple[threading.Thread, threading.Thread]:
 
     autograsper_thread = threading.Thread(
@@ -196,7 +197,7 @@ def start_threads(
 
 
 def handle_state_changes(
-    autograsper: StackingAutograsper,
+    autograsper: AutograsperBase,
     config: ConfigParser,
     script_dir: str,
     args: argparse.Namespace,
