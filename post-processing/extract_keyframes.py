@@ -24,26 +24,25 @@ def compare_values(val1, val2, epsilon=EPSILON):
 
 
 def find_matching_state(order, states, start_idx):
-    """Find the first state where the order is successfully carried out, starting from start_idx."""
+    """
+    Find the first state index where the order is successfully carried out,
+    starting from start_idx.
+    """
     order_type = order["order_type"]
     order_value = order.get("order_value", [])
 
     for idx in range(start_idx - 1, len(states)):
-
         idx = max(0, idx)
         state = states[idx]
 
         if order_type == "MOVE_XY":
-            if len(order_value) == 2 and (
-                compare_values(order_value[0], state["x_norm"])
-                and compare_values(order_value[1], state["y_norm"])
-            ):
+            if (len(order_value) == 2 and
+                compare_values(order_value[0], state["x_norm"]) and
+                compare_values(order_value[1], state["y_norm"])):
                 return idx
 
         elif order_type == "MOVE_Z":
-            if len(order_value) == 1 and compare_values(
-                order_value[0], state["z_norm"]
-            ):
+            if len(order_value) == 1 and compare_values(order_value[0], state["z_norm"]):
                 return idx
 
         elif order_type == "GRIPPER_OPEN":
@@ -52,15 +51,77 @@ def find_matching_state(order, states, start_idx):
                 return idx
 
         elif order_type == "GRIPPER_CLOSE":
-            # Match with claw_norm close to 0.21
-            if compare_values(0.30, state["claw_norm"]) or compare_values(0.25, state["claw_norm"]) or compare_values(0.24, state["claw_norm"]) or compare_values(0.21, state["claw_norm"]):
+            # Match with claw_norm close to 0.21/0.24/0.25/0.30
+            if (compare_values(0.30, state["claw_norm"]) or
+                compare_values(0.25, state["claw_norm"]) or
+                compare_values(0.24, state["claw_norm"]) or
+                compare_values(0.21, state["claw_norm"])):
                 return idx
 
     return None
 
 
+def get_total_video_frames(video_dir_path):
+    """
+    Return the total number of frames across all .mp4 files
+    in the specified directory. We sum them so that code
+    treats multiple .mp4 as concatenated in time.
+    """
+    sum_frames = 0
+    if not os.path.exists(video_dir_path):
+        return 0
+    for f in sorted(os.listdir(video_dir_path)):
+        if f.endswith(".mp4"):
+            cap = cv2.VideoCapture(os.path.join(video_dir_path, f))
+            sum_frames += int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.release()
+    return sum_frames
+
+
+def compute_final_order_from_matches(matching_states):
+    """
+    Mimics the logic in save_results to figure out the final 'current_order'
+    after all matched orders have been applied. Returns that as a dict.
+    """
+    if not matching_states:
+        # If nothing matched, fallback to some default
+        return {
+            "x_norm": 0.0,
+            "y_norm": 0.7,
+            "z_norm": 1.0,
+            "rotation": 0.0,
+            "claw_norm": 0.0
+        }
+
+    # Start from the first state's values
+    _, _, first_state = matching_states[0]
+    current_order = {
+        "x_norm": first_state.get("x_norm", 0.0),
+        "y_norm": first_state.get("y_norm", 0.0),
+        "z_norm": first_state.get("z_norm", 0.0),
+        "rotation": first_state.get("rotation", 0.0),
+        "claw_norm": first_state.get("claw_norm", 0.0),
+    }
+
+    for (order, _, _) in matching_states:
+        # If there's no "order_type", it's a special pair (like final),
+        # skip it so we don't re-apply final pair logic
+        if isinstance(order, dict) and "order_type" in order:
+            if order["order_type"] == "MOVE_XY":
+                current_order["x_norm"] = order["order_value"][0]
+                current_order["y_norm"] = order["order_value"][1]
+            elif order["order_type"] == "MOVE_Z":
+                current_order["z_norm"] = order["order_value"][0]
+            elif order["order_type"] == "GRIPPER_OPEN":
+                current_order["claw_norm"] = 1.0
+            elif order["order_type"] == "GRIPPER_CLOSE":
+                current_order["claw_norm"] = 0.21
+
+    return current_order
+
+
 def process_task(task_dir):
-    """Process each task directory."""
+    """Process each task directory and inject a final (state+frame) at the end (the very last video frame)."""
     states_file = os.path.join(task_dir, "states.json")
     orders_file = os.path.join(task_dir, "orders.json")
 
@@ -73,17 +134,18 @@ def process_task(task_dir):
 
     matching_states = []
     last_matched_index = None
+    epsilon = 1e-4
 
-    # TODO if x/y values of first state is within epsilon of second state, add first state to matching states. Otherwise, add the second state
-    # In both cases, their matching order should be the first order
+    # 1) Get how many frames are in the main 'Video' folder
+    video_dir_path = os.path.join(task_dir, "Video")
+    total_frames_in_video = get_total_video_frames(video_dir_path)
+    # If there's no video or zero count, default to 0
+    final_video_frame_index = max(0, total_frames_in_video - 1)
 
-    epsilon = 1e-4 
-
+    # 2) Handle the initial "startup" match
     if len(states) >= 2:
         first_state, second_state = states[0], states[1]
 
-        first_addition = None
-        
         if (
             abs(first_state['x_norm'] - second_state['x_norm']) < epsilon and
             abs(first_state['y_norm'] - second_state['y_norm']) < epsilon
@@ -92,18 +154,20 @@ def process_task(task_dir):
         else:
             first_addition = second_state
 
-    # standardize starting values to cover sensory mistakes
-    first_addition['x_norm'] = 0.0
-    first_addition['y_norm'] = 0.7
-    first_addition['z_norm'] = 1.0
-    first_addition['claw_norm'] = 0.0
-    matching_states.append((orders[0], 1, first_addition))
+        # Standardize starting values to cover sensor noise
+        first_addition['x_norm'] = 0.0
+        first_addition['y_norm'] = 0.7
+        first_addition['z_norm'] = 1.0
+        first_addition['claw_norm'] = 0.0
 
+        # Insert as if it matched the first order
+        matching_states.append((orders[0], 1, first_addition))
 
+    # 3) Match each order to the states
     for order in orders:
         if order["order_type"] == "MOVE_XY":
+            # Ensure no negative XY
             order["order_value"] = [max(0,n) for n in order["order_value"]]
-
 
         match_index = find_matching_state(
             order,
@@ -111,39 +175,39 @@ def process_task(task_dir):
             last_matched_index + 1 if last_matched_index is not None else 0,
         )
         if match_index is not None:
-            #  if last_matched_index is not None and match_index == last_matched_index + 1:
-                # Skip this match as it is consecutive to the last one
-                # continue
-            matching_states.append(
-                (order, match_index, states[match_index])
-            )  # Store order, index, and state
+            matching_states.append((order, match_index, states[match_index]))
             last_matched_index = match_index
         else:
-            # if the order is the last, in grapsing case "GRIPPPER_CLOSE", add last frame
-            if order["order_type"] == "GRIPPER_CLOSE":
-                matching_states.append(
-                                (order, len(states)-1, states[-1])
-                            )
+            # If we can't match but order is GRIPPER_CLOSE, push to last known state
+            if order["order_type"] == "GRIPPER_CLOSE" and states:
+                matching_states.append((order, len(states)-1, states[-1]))
             else:
-                break  # If an order can't be matched, stop further processing
+                # If an order can't be matched, break out
+                break
+
+    # 4) Compute the "final" order from all matched states
+    final_order_dict = compute_final_order_from_matches(matching_states)
+
+    # 5) Inject a special final pair: 
+    #    ( final_order_dict, final_video_frame_index, final_order_dict )
+    #    This ensures the final frame is the absolute last from the video data.
+    #    We use the same dict for 'order' and 'state' (no "order_type").
+    matching_states.append((final_order_dict, final_video_frame_index, final_order_dict))
 
     return matching_states
 
 
 def post_process_results(results):
-    """Shift orders one index back and remove the first order and last state."""
+    """
+    Shift orders one index back and remove the first matched entry from the output.
+    """
     if len(results) > 1:
-        # Shift orders back by one index
         shifted_results = [
             (results[i][0], results[i - 1][1], results[i - 1][2])
             for i in range(1, len(results))
         ]
-
-        # Remove the first order and last state
-        #shifted_results.pop()  # Remove the last element (last state)
         return shifted_results
-    return results  # If results length is 1 or less, return as is
-
+    return results
 
 
 def save_results(task_dir, results):
@@ -165,18 +229,27 @@ def save_results(task_dir, results):
     orders_output = []
 
     for order, index, state in results:
-        # Update current_order with order values where applicable
-        if order["order_type"] == "MOVE_XY":
-            current_order["x_norm"] = order["order_value"][0]
-            current_order["y_norm"] = order["order_value"][1]
-        elif order["order_type"] == "MOVE_Z":
-            current_order["z_norm"] = order["order_value"][0]
-        elif order["order_type"] == "GRIPPER_OPEN":
-            current_order["claw_norm"] = 1.0
-        elif order["order_type"] == "GRIPPER_CLOSE":
-            current_order["claw_norm"] = 0.21
+        # Detect if this is the special final pair (no "order_type")
+        if isinstance(order, dict) and "order_type" not in order:
+            # Overwrite the current_order with the final dict
+            current_order["x_norm"]    = order["x_norm"]
+            current_order["y_norm"]    = order["y_norm"]
+            current_order["z_norm"]    = order["z_norm"]
+            current_order["rotation"]  = order["rotation"]
+            current_order["claw_norm"] = order["claw_norm"]
+        else:
+            # Normal path for recognized order_type
+            if order["order_type"] == "MOVE_XY":
+                current_order["x_norm"] = order["order_value"][0]
+                current_order["y_norm"] = order["order_value"][1]
+            elif order["order_type"] == "MOVE_Z":
+                current_order["z_norm"] = order["order_value"][0]
+            elif order["order_type"] == "GRIPPER_OPEN":
+                current_order["claw_norm"] = 1.0
+            elif order["order_type"] == "GRIPPER_CLOSE":
+                current_order["claw_norm"] = 0.21
 
-        # Create the combined entry with both the state and the updated order
+        # Build combined entry
         combined_entry = {
             "state_index": index,
             "x_norm": round(state["x_norm"], 2),
@@ -193,7 +266,7 @@ def save_results(task_dir, results):
             }
         }
 
-        # Create separate state and order entries
+        # Separate state entry
         state_entry = {
             "state_index": index,
             "x_norm": round(state["x_norm"], 2),
@@ -203,6 +276,7 @@ def save_results(task_dir, results):
             "claw_norm": round(state["claw_norm"], 2),
         }
 
+        # Separate order entry
         order_entry = {
             "x_norm": round(current_order.get("x_norm", 0), 2),
             "y_norm": round(current_order.get("y_norm", 0), 2),
@@ -211,27 +285,24 @@ def save_results(task_dir, results):
             "claw_norm": round(current_order.get("claw_norm", 0), 2),
         }
 
-        # Add entries to outputs
         combined_output.append(combined_entry)
         states_output.append(state_entry)
         orders_output.append(order_entry)
 
-    # Save the combined data
+    # Save combined JSON
     combined_file = os.path.join(task_dir, "extracted_combined.json")
     with open(combined_file, "w") as f:
         json.dump(combined_output, f, indent=4)
 
-    # Save the states data
+    # Save states JSON
     states_file = os.path.join(task_dir, "extracted_states.json")
     with open(states_file, "w") as f:
         json.dump(states_output, f, indent=4)
 
-    # Save the orders data
+    # Save orders JSON
     orders_file = os.path.join(task_dir, "extracted_orders.json")
     with open(orders_file, "w") as f:
         json.dump(orders_output, f, indent=4)
-
-
 
 
 def extract_frames_and_save_video(
@@ -241,15 +312,13 @@ def extract_frames_and_save_video(
     output_video="extracted_states_video.mp4",
     frame_format="jpg",
 ):
-    """Extract the frames corresponding to the states and save them as a new video and individual images."""
+    """Extract frames from the matched state indices and save them to a new video + individual images."""
     video_files = sorted(
         [f for f in os.listdir(os.path.join(task_dir, video_dir)) if f.endswith(".mp4")]
     )
     video_file_paths = [os.path.join(task_dir, video_dir, f) for f in video_files]
 
-    cap = None
     frame_list = []
-
     total_frames = 0
     frames_per_video = []
 
@@ -257,37 +326,37 @@ def extract_frames_and_save_video(
     frames_output_dir = os.path.join(task_dir, f"extracted_frames_{video_dir}")
     os.makedirs(frames_output_dir, exist_ok=True)
 
-    # Calculate the total number of frames per video and overall total frames
+    # Calculate total number of frames (treat multiple MP4 as concatenated)
     for video_path in video_file_paths:
         cap = cv2.VideoCapture(video_path)
         frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         frames_per_video.append(frames)
         total_frames += frames
         cap.release()
-    
-    print("frames in video:", total_frames)
 
-    # Adjust frame index to be x frames behind
-    if total_frames > 18: 
+    print(f"[{video_dir}] total frames in video:", total_frames)
+
+    # Determine the frame lag (used only for non-final states)
+    if total_frames > 18:
         frame_lag = 1
     elif total_frames > 13:
         frame_lag = 2
     else:
         frame_lag = 3
 
-
-    # Determine the frame from which each state should be extracted
-    for idx, (_, frame_index, _) in enumerate(results):
-        adjusted_frame_index = max(0, frame_index - frame_lag)
+    # Pull out frames
+    for idx, (order, frame_index, _) in enumerate(results):
+        # If this is the special final pair (no "order_type"), skip the lag
+        if isinstance(order, dict) and ("order_type" not in order):
+            adjusted_frame_index = frame_index
+        else:
+            # Apply the normal lag
+            adjusted_frame_index = max(0, frame_index - frame_lag)
 
         cumulative_frames = 0
-        for i, frames in enumerate(frames_per_video):
-            if adjusted_frame_index < cumulative_frames + frames:
-
-
+        for i, fcount in enumerate(frames_per_video):
+            if adjusted_frame_index < cumulative_frames + fcount:
                 relative_frame_index = adjusted_frame_index - cumulative_frames
-
-
                 video_path = video_file_paths[i]
 
                 cap = cv2.VideoCapture(video_path)
@@ -295,16 +364,16 @@ def extract_frames_and_save_video(
                 ret, frame = cap.read()
                 if ret:
                     frame_list.append(frame)
-                    # Save individual frames
+                    # Save frame as an image
                     frame_filename = os.path.join(
                         frames_output_dir, f"frame_{idx:04d}.{frame_format}"
                     )
                     cv2.imwrite(frame_filename, frame)
                 cap.release()
                 break
-            cumulative_frames += frames
+            cumulative_frames += fcount
 
-    # Save the frames into a new video
+    # Write extracted frames into a new MP4 video
     if frame_list:
         height, width, _ = frame_list[0].shape
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -313,41 +382,45 @@ def extract_frames_and_save_video(
 
         for frame in frame_list:
             out.write(frame)
-
         out.release()
 
 
 def main(root_dir):
-    """Main function to iterate over all tasks in detected directories."""
-    base_dir = os.path.join(root_dir, "autograsper", "recorded_data")
+    """Main function to iterate over all tasks in numeric subdirectories."""
+    base_dir = os.path.join(root_dir, "autograsper", "merged_data")
 
-    # Detect directories named with integers and ensure task subdirectory exists
+    # Detect directories named with integers and ensure "task" subdirectory exists
     task_dirs = [
         os.path.join(base_dir, d, "task")
-        for d in sorted(os.listdir(base_dir), key=lambda x: int(x) if x.isdigit() else float('inf'))
+        for d in sorted(
+            os.listdir(base_dir), key=lambda x: int(x) if x.isdigit() else float('inf')
+        )
         if d.isdigit() and os.path.isdir(os.path.join(base_dir, d, "task"))
     ]
 
-    # Process each detected task directory
     for task_dir in task_dirs:
         print(f"Processing {task_dir}...")
 
+        # 1) Process the data (includes injecting final-state with last frame)
         matching_states = process_task(task_dir)
         if matching_states is None:
             continue
-        # post_processed_results = matching_states # post_process_results(matching_states)
-        post_processed_results = post_process_results(matching_states)
-        save_results(task_dir, post_processed_results)
-        if len(post_processed_results) != 4:
-            print("fewer frames than expected")
 
-        # Extract frames and save video for both Video and Bottom_Video directories
+        # 2) Optionally run post-processing to shift orders
+        post_processed_results = post_process_results(matching_states)
+
+        # 3) Save results to extracted_*.json
+        save_results(task_dir, post_processed_results)
+
+        # 4) Extract frames and write a video for the "top" camera
         extract_frames_and_save_video(
             task_dir,
             post_processed_results,
             video_dir="Video",
             output_video="extracted_states_video.mp4",
         )
+
+        # 5) Extract frames and write a video for the "bottom" camera
         extract_frames_and_save_video(
             task_dir,
             post_processed_results,
@@ -359,3 +432,6 @@ def main(root_dir):
 if __name__ == "__main__":
     root_dir = "."
     main(root_dir)
+
+
+
