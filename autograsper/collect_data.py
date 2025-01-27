@@ -65,9 +65,9 @@ def setup_recorder(output_dir: str, robot_idx: str, config: ConfigParser) -> Rec
     session_id = "test"
     camera_matrix = np.array(eval(config["camera"]["m"]))
     distortion_coefficients = np.array(eval(config["camera"]["d"]))
-    token = os.getenv("ROBOT_TOKEN")
+    token = os.getenv("CLOUDGRIPPER_TOKEN")
     if not token:
-        raise ValueError("ROBOT_TOKEN environment variable not set")
+        raise ValueError("CLOUDGRIPPER_TOKEN environment variable not set")
     return Recorder(
         session_id, output_dir, camera_matrix, distortion_coefficients, token, robot_idx
     )
@@ -123,7 +123,7 @@ def create_new_data_point(script_dir: str) -> Tuple[str, str, str]:
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Robot Controller")
-    parser.add_argument("--robot_idx", default="robot23", type=str, required=False, help="Robot index")
+    parser.add_argument("--robot_idx", type=str, required=True, help="Robot index")
     parser.add_argument(
         "--config",
         type=str,
