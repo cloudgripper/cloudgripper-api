@@ -68,7 +68,7 @@ class RandomGrasper(AutograsperBase):
     def perform_task(self):
 
         
-        # run_calibration(0.2, self.robot)
+        run_calibration(0.2, self.robot)
         
 
         # test_calibration(self.bottom_image, ["red"])
