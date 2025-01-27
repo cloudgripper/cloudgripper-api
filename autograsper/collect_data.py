@@ -21,6 +21,8 @@ STATE_LOCK = threading.Lock()
 BOTTOM_IMAGE_LOCK = threading.Lock()
 ERROR_EVENT = threading.Event()
 
+TIME_BETWEEN_EXPERIMENTS=10
+
 
 class SharedState:
     def __init__(self):
@@ -208,7 +210,7 @@ def handle_state_changes(
 
                 if shared_state.state == RobotActivity.STARTUP and prev_robot_activity != RobotActivity.STARTUP:
                     shared_state.recorder.pause = True
-                    time.sleep(10)
+                    time.sleep(TIME_BETWEEN_EXPERIMENTS)
                     shared_state.recorder.pause = False
 
                 if shared_state.state == RobotActivity.ACTIVE:
@@ -236,17 +238,6 @@ def handle_state_changes(
                     autograsper.start_flag = True
 
                 elif shared_state.state == RobotActivity.RESETTING:
-
-                    # this is for STACKING. TODO: generalize this functionality
-                    # status_message = (
-                    #     "success"
-                    #     if is_stacking_successful(
-                    #         shared_state.recorder, autograsper.colors
-                    #     )
-                    #     else "fail"
-                    # )
-                    # if status_message == "fail":
-                    #     autograsper.failed = True
 
                     if autograsper.failed:
                         status_message = "fail"

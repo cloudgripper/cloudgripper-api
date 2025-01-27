@@ -27,7 +27,6 @@ class RobotActivity(Enum):
     FINISHED = 3
     STARTUP = 4
 
-
 class AutograsperBase(ABC):
     def __init__(
         self,
@@ -68,7 +67,6 @@ class AutograsperBase(ABC):
 
     def startup(self, position: List[float]):
         self.robot.rotate(0)
-        time.sleep(0.5)
         startup_commands = [
             (OrderType.GRIPPER_OPEN, []),
             (OrderType.MOVE_Z, [1]),
