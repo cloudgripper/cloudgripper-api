@@ -120,11 +120,14 @@ class RandomGrasper(AutograsperBase):
     def generate_new_block_position(self):
         import random
 
-        margin = 0.2
+        margin = 0.25
         while True:
             x = random.uniform(0.2, 0.8)
             y = random.uniform(0.2, 0.8)
-            if abs(x - 0.5) > margin and abs(y - 0.5) > margin:
+            avoid_position = [0.5, 0.5]
+            dist = np.sqrt( np.pow(x - avoid_position[0], 2) + np.pow(y-avoid_position[1], 2) )
+
+            if dist > margin:
                 break
 
         return [x, y]

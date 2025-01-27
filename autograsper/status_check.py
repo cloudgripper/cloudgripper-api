@@ -84,7 +84,6 @@ while task_index < num_tasks:
     show_image(tasks[task_index])
 
     key = cv2.waitKey(0)
-    print(f"Key pressed: {key}")
 
     if key == ord('n'):  # Press 'n' to move to the next image
         mark_as_success(tasks[task_index])
