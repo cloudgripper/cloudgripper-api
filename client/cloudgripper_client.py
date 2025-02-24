@@ -48,7 +48,7 @@ class GripperRobot:
 
     def step_forward(self):
         """
-        Move the robot one step forward in the y-direction
+        Move the robot one step forward (y-direction)
 
         Args:
             None
@@ -65,7 +65,7 @@ class GripperRobot:
 
     def step_backward(self):
         """
-        Move the robot one step backward in the y-direction
+        Move the robot one step backward (y-direction)
 
         Args:
             None
@@ -82,7 +82,7 @@ class GripperRobot:
 
     def step_left(self):
         """
-        Move the robot one step left in the x-direction
+        Move the robot one step left (x-direction)
 
         Args:
             None
@@ -99,7 +99,7 @@ class GripperRobot:
 
     def step_right(self):
         """
-        Move the robot one step right in the x-direction
+        Move the robot one step right (x-direction)
 
         Args:
             None
@@ -178,7 +178,7 @@ class GripperRobot:
 
     def move_z(self, z):
         """
-        Move the robot's z-axis to the specified normalized position
+        Move the robot's z-axis to the specified normalized position (z-direction)
 
         Args:
             z (float): The desired z-axis position for the robot (0 for fully down, 1 for fully up)
