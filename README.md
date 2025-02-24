@@ -1,4 +1,4 @@
-# CloudGripper Library: README
+# CloudGripper Client Library
 
 The CloudGripper API Client library provides a Python client to communicate with and control robotic arms over a cloud-based API. 
 
@@ -8,11 +8,13 @@ The CloudGripper API Client library provides a Python client to communicate with
 - Simple functions to send commands and fetch robot state.
 - Allows image fetching from robot cameras.
 
-## Prerequisites
+## Setup
 
-Before you start using the CloudGripper client library, ensure the following libraries are installed:
+Setup python virtual environment and install dedpendencies
 
 ```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -21,14 +23,17 @@ pip install -r requirements.txt
 1. **Setting up the Client**:
 
    First, ensure that your token for the CloudGripper API is set as an environment variable named `CLOUDGRIPPER_TOKEN`. Ensure you keep this token secure and do not share it publicly.
+   ```
+   export CLOUDGRIPPER_TOKEN="YOUR_TOKEN"
+   ```
 
 2. **Importing and Initializing the GripperRobot class**:
 
    Import the required libraries and classes.
 
    ```python
-   from client.cloudgripper_client import GripperRobot
    import os
+   from client.cloudgripper_client import GripperRobot
    ```
 
    Initialize the robot object by specifying its name and your API token. Name is typically in the format `robotX`, where `X` is the specific number of the robot assigned to you.
