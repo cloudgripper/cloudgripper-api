@@ -1,5 +1,6 @@
 from requests import put, get, post, exceptions
 import cv2
+import time
 import base64
 import numpy as np
 
@@ -45,6 +46,7 @@ class GripperRobot:
             return call_api['state'], call_api['timestamp']
         except exceptions.RequestException as e:
             print('Request failed:', e)
+            return None, None
 
     def step_forward(self):
         """
@@ -62,6 +64,7 @@ class GripperRobot:
             return call_api['time']
         except exceptions.RequestException as e:
             print('Request failed:', e)
+            return None
 
     def step_backward(self):
         """
@@ -79,7 +82,8 @@ class GripperRobot:
             return call_api['time']
         except exceptions.RequestException as e:
             print('Request failed:', e)
-
+            return None
+        
     def step_left(self):
         """
         Move the robot one step left (x-direction)
@@ -96,7 +100,8 @@ class GripperRobot:
             return call_api['time']
         except exceptions.RequestException as e:
             print('Request failed:', e)
-
+            return None
+        
     def step_right(self):
         """
         Move the robot one step right (x-direction)
@@ -113,6 +118,7 @@ class GripperRobot:
             return call_api['time']
         except exceptions.RequestException as e:
             print('Request failed:', e)
+            return None
 
     def move_gripper(self, angle):
         """
@@ -131,6 +137,7 @@ class GripperRobot:
             return call_api['time']
         except exceptions.RequestException as e:
             print('Request failed:', e)
+            return None
 
     def gripper_close(self):
         """
@@ -175,6 +182,7 @@ class GripperRobot:
             return call_api['time']
         except exceptions.RequestException as e:
             print('Request failed:', e)
+            return None
 
     def move_z(self, z):
         """
@@ -193,6 +201,7 @@ class GripperRobot:
             return call_api['time']
         except exceptions.RequestException as e:
             print('Request failed:', e)
+            return None
 
     def move_xy(self, x, y):
         """
@@ -210,10 +219,10 @@ class GripperRobot:
         try:
             call_api = get(self.base_api + '/gcode/' + str(x) +
                            '/' + str(y), headers=self.headers).json()
-            print(call_api)
             return call_api['time']
         except exceptions.RequestException as e:
             print('Request failed:', e)
+            return None
 
     def calibrate(self):
         """
@@ -254,6 +263,7 @@ class GripperRobot:
             return source, time_stamp
         except:
             print("Image not available")
+            return None, None
 
     def getImageTop(self):
         """
@@ -278,3 +288,4 @@ class GripperRobot:
             return source, time_stamp
         except:
             print("Image not available")
+            return None, None
