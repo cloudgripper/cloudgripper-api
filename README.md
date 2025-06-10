@@ -10,7 +10,7 @@ The CloudGripper API Client library provides a Python client to communicate with
 
 ## Setup
 
-Setup python virtual environment and install dedpendencies
+Set up a Python virtual environment and install dependencies
 
 ```bash
 python3 -m venv venv
@@ -101,7 +101,7 @@ Here are some of the basic commands you can send using the CloudGripper library:
 - Gripper Control:
   - `robot.gripper_open()`   # Opens the gripper fully
   - `robot.gripper_close()`  # Closes the gripper fully
-  - `robot.move_gripper(val)`# Adjusts the gripper's opening to a specific value, where 0 is fully close and 1 is fully open
+  - `robot.move_gripper(val)` # Adjusts the gripper's opening to a specific value, where 0 is fully close and 1 is fully open
 
 - Fetch State and Image:
   - `robot.get_state()`
@@ -113,3 +113,57 @@ Here are some of the basic commands you can send using the CloudGripper library:
 - Ensure you have a stable internet connection as the client communicates with the robots over the internet.
 
 ---
+
+# CloudGripper Mock API
+
+This repository also contains a mock implementation of the CloudGripper robot class for development and testing purposes.
+
+## Overview
+
+The `GripperRobotMock` class simulates the behavior of a CloudGripper robot class, allowing developers to test their code without requiring access to a physical robot. The mock implementation includes:
+
+- Robot movement commands (x, y, z axes)
+- Gripper control (open/close)
+- Rotation control
+- Empty Camera image
+- Realistic error handling with configurable failure rates
+
+For testing purposes, the mock implementation will use a default token if none is provided.
+
+## Usage Examples
+
+### Basic Usage
+
+```python
+from client.cloudgripper_client_mock import GripperRobotMock
+
+# Initialize a mock robot with ID and authentication token
+# This mocks a real robot connection without requiring hardware
+robot = GripperRobotMock('robot6', 'your-token-here')
+
+# Get the mock robot state (position, gripper status, etc.)
+# Returns a dictionary with robot parameters and a timestamp
+state, timestamp = robot.get_state()
+print(f"Robot state: {state}")
+
+# Mock precise XY movement (values normalized between 0-1)
+# 0.5, 0.7 represents moving to center-right of the work area
+robot.move_xy(0.5, 0.7)
+
+# Mock vertical movement (0=bottom, 1=top)
+# 0.8 positions the robot arm near the top of its vertical range
+robot.move_z(0.8)
+
+# Mock gripper operations with realistic timing
+robot.gripper_open() # Fully opens the mock gripper, mimicking a real gripper's timing
+robot.gripper_close() # Fully closes the mock gripper, with emulated closing force
+
+# Mock camera images (returns blank frames with timestamps)
+img_base, timestamp = robot.getImageBase()  # Mock bottom-mounted camera image
+img_top, timestamp = robot.getImageTop()    # Mock top-mounted camera image
+```
+
+The mock API simulates network failures with a configurable failure rate. By default, there's a 1% chance that any mock API call will fail. You can adjust this rate:
+
+```python
+robot.failure_rate = 0.1  # Set 10% probability of command failure to mock network issues

@@ -1,14 +1,13 @@
-from requests import put, get, post, exceptions
-import cv2
-import time
-import base64
 import numpy as np
+import time
+import random
+from requests import exceptions
 
 api_address_robots = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/robot" for i in range(1, 33)}
 
-class GripperRobot:
+class GripperRobotMock:
     """
-    A class to represent a CloudGripper robot
+    A class to mock the CloudGripper class
 
     Args:
         name (str): The name of the robot
@@ -21,6 +20,9 @@ class GripperRobot:
         self.headers = {"apiKey": token}
         self.base_api = api_address_robots[name]
 
+        # Mock 1% probability of request failure
+        self.failure_rate = 0.01
+
     def get_state(self):
         """
         Get the current state of the robot
@@ -29,7 +31,7 @@ class GripperRobot:
             None
         
         Returns:
-            state (dict): current state of the robot:
+            state (dict): current state of a mock robot:
                 - 'x_norm': Normalized x-coordinate of the robot's position
                 - 'y_norm': Normalized y-coordinate of the robot's position
                 - 'z_norm': Normalized z-coordinate of the robot's position
@@ -40,17 +42,28 @@ class GripperRobot:
                 - 'claw_current': Current in the claw servo motor
             timestamp (float): timestamp of the state in seconds since the epoch
         """
+        state = {'x_norm': 0.5, 
+                 'y_norm': 0.5, 
+                 'z_norm': 0.5, 
+                 'rotation': 0,
+                 'claw_norm': 0.5,
+                 'z_current': 0,
+                 'rotation_current': 0,
+                 'claw_current': 0}
+        
+        timestamp = time.time()
         try:
-            call_api = get(self.base_api + '/getState',
-                           headers=self.headers).json()
-            return call_api['state'], call_api['timestamp']
+            if random.random() > self.failure_rate:
+                return state, timestamp
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None, None
-
+        
     def step_forward(self):
         """
-        Move the robot one step forward (y-direction)
+        Move the mock robot one step forward (y-direction)
 
         Args:
             None
@@ -58,17 +71,19 @@ class GripperRobot:
         Returns:
             timestamp (float): timestamp of the command in seconds since the epoch
         """
+        
         try:
-            call_api = get(self.base_api + '/moveUp',
-                           headers=self.headers).json()
-            return call_api['time']
+            if random.random() > self.failure_rate:
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
 
     def step_backward(self):
         """
-        Move the robot one step backward (y-direction)
+        Move the mock robot one step backward (y-direction)
 
         Args:
             None
@@ -77,16 +92,17 @@ class GripperRobot:
             timestamp (float): timestamp of the command in seconds since the epoch
         """
         try:
-            call_api = get(self.base_api + '/moveDown',
-                           headers=self.headers).json()
-            return call_api['time']
+            if random.random() > self.failure_rate:
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
-        
+
     def step_left(self):
         """
-        Move the robot one step left (x-direction)
+        Move the mock robot one step left (x-direction)
 
         Args:
             None
@@ -95,16 +111,17 @@ class GripperRobot:
             timestamp (float): timestamp of the command in seconds since the epoch
         """
         try:
-            call_api = get(self.base_api + '/moveLeft',
-                           headers=self.headers).json()
-            return call_api['time']
+            if random.random() > self.failure_rate:
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
-        
+
     def step_right(self):
         """
-        Move the robot one step right (x-direction)
+        Move the mock robot one step right (x-direction)
 
         Args:
             None
@@ -113,16 +130,17 @@ class GripperRobot:
             timestamp (float): timestamp of the command in seconds since the epoch
         """
         try:
-            call_api = get(self.base_api + '/moveRight',
-                           headers=self.headers).json()
-            return call_api['time']
+            if random.random() > self.failure_rate:
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
 
     def move_gripper(self, angle):
         """
-        Move the robot's gripper to the specified angle
+        Move the mock robot's gripper to the specified angle
 
         Args:
             angle (float): The desired angle for the gripper (0 for closed, 1 for open)
@@ -132,16 +150,17 @@ class GripperRobot:
         """
         self.gripperAngle = angle
         try:
-            call_api = get(self.base_api + '/grip/' + str(self.gripperAngle),
-                           headers=self.headers).json()
-            return call_api['time']
+            if random.random() > self.failure_rate:  
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
 
     def gripper_close(self):
         """
-        Close the robot's gripper
+        Close the mock robot's gripper
 
         Args:
             None
@@ -154,7 +173,7 @@ class GripperRobot:
 
     def gripper_open(self):
         """
-        Open the robot's gripper
+        Open the mock robot's gripper
 
         Args:
             None
@@ -167,7 +186,7 @@ class GripperRobot:
 
     def rotate(self, angle):
         """
-        Rotate the robot to the specified angle
+        Rotate the mock robot to the specified angle
 
         Args:
             angle (float): The desired rotation angle for the robot (in degrees)
@@ -177,16 +196,17 @@ class GripperRobot:
         """
         self.rotationAngle = angle
         try:
-            call_api = get(self.base_api + '/rotate/' +
-                           str(angle), headers=self.headers).json()
-            return call_api['time']
+            if random.random() > self.failure_rate:
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
 
     def move_z(self, z):
         """
-        Move the robot's z-axis to the specified normalized position (z-direction)
+        Move the mock robot's z-axis to the specified normalized position (z-direction)
 
         Args:
             z (float): The desired z-axis position for the robot (0 for fully down, 1 for fully up)
@@ -196,16 +216,17 @@ class GripperRobot:
         """
         self.zaxisAngle = z
         try:
-            call_api = get(self.base_api + '/up_down/' +
-                           str(z), headers=self.headers).json()
-            return call_api['time']
+            if random.random() > self.failure_rate:
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
 
     def move_xy(self, x, y):
         """
-        Move the robot to the specified normalized x and y coordinates
+        Move the mock robot to the specified normalized x and y coordinates
 
         Args:
             x (float): The desired normalized x-coordinate for the robot (0 for leftmost, 1 for rightmost)
@@ -217,16 +238,17 @@ class GripperRobot:
         self.robotPositionX = x
         self.robotPositionY = y
         try:
-            call_api = get(self.base_api + '/gcode/' + str(x) +
-                           '/' + str(y), headers=self.headers).json()
-            return call_api['time']
+            if random.random() > self.failure_rate:
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
-
+        
     def calibrate(self):
         """
-        (INACTIVE) Calibrate the robot's position and orientation
+        (INACTIVE) Calibrate the mock robot's position and orientation
 
         Args:
             None
@@ -235,14 +257,16 @@ class GripperRobot:
             None
         """
         try:
-            get(self.base_api +
-                '/calibrate', headers=self.headers).json()
+            if random.random() > self.failure_rate:
+                return
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except exceptions.RequestException as e:
             print('Request failed:', e)
 
     def getImageBase(self):
         """
-        Get the base camera image from the robot
+        Get the base camera image from the mock robot
 
         Args:
             None
@@ -252,22 +276,19 @@ class GripperRobot:
             time_stamp (float): Timestamp of the image in seconds since the epoch
         """
         try:
-            call_api = get(
-                self.base_api+'/getImageBase', headers=self.headers).json()
-            getimage = call_api['data']
-            time_stamp = call_api['time']
-            encode_img = getimage.encode('latin1')
-            img = base64.b64decode(encode_img)
-            npimg = np.fromstring(img, dtype=np.uint8)
-            source = cv2.imdecode(npimg, 1)
-            return source, time_stamp
+            if random.random() > self.failure_rate:
+                source = np.zeros((480, 640, 3), dtype=np.uint8)  # Create black image
+                time_stamp = time.time()
+                return source, time_stamp
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except:
             print("Image not available")
             return None, None
 
     def getImageTop(self):
         """
-        Get the top camera image from the robot
+        Get the top camera image from the mock robot
 
         Args:
             None
@@ -277,15 +298,12 @@ class GripperRobot:
             time_stamp (float): Timestamp of the image in seconds since the epoch
         """
         try:
-            call_api = get(
-                self.base_api+'/getImageTop', headers=self.headers).json()
-            getimage = call_api['data']
-            time_stamp = call_api['time']
-            encode_img = getimage.encode('latin1')
-            img = base64.b64decode(encode_img)
-            npimg = np.fromstring(img, dtype=np.uint8)
-            source = cv2.imdecode(npimg, 1)
-            return source, time_stamp
+            if random.random() > self.failure_rate:
+                source = np.zeros((720, 1280, 3), dtype=np.uint8)  # Create black image
+                time_stamp = time.time()
+                return source, time_stamp
+            else:
+                raise exceptions.RequestException("Simulated request failure")
         except:
             print("Image not available")
             return None, None
