@@ -21,7 +21,7 @@ class GripperRobotMock:
         self.base_api = api_address_robots[name]
 
         # Mock 1% probability of request failure
-        self.failier_rate = 0.01
+        self.failure_rate = 0.01
 
     def get_state(self):
         """
@@ -53,7 +53,7 @@ class GripperRobotMock:
         
         timestamp = time.time()
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return state, timestamp
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -73,7 +73,7 @@ class GripperRobotMock:
         """
         
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return time.time()
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -92,7 +92,7 @@ class GripperRobotMock:
             timestamp (float): timestamp of the command in seconds since the epoch
         """
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return time.time()
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -111,7 +111,7 @@ class GripperRobotMock:
             timestamp (float): timestamp of the command in seconds since the epoch
         """
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return time.time()
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -130,7 +130,7 @@ class GripperRobotMock:
             timestamp (float): timestamp of the command in seconds since the epoch
         """
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return time.time()
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -150,7 +150,7 @@ class GripperRobotMock:
         """
         self.gripperAngle = angle
         try:
-            if random.random() > self.failier_rate:  
+            if random.random() > self.failure_rate:  
                 return time.time()
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -196,7 +196,7 @@ class GripperRobotMock:
         """
         self.rotationAngle = angle
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return time.time()
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -216,7 +216,7 @@ class GripperRobotMock:
         """
         self.zaxisAngle = z
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return time.time()
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -238,7 +238,7 @@ class GripperRobotMock:
         self.robotPositionX = x
         self.robotPositionY = y
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return time.time()
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -257,7 +257,7 @@ class GripperRobotMock:
             None
         """
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 return
             else:
                 raise exceptions.RequestException("Simulated request failure")
@@ -276,7 +276,7 @@ class GripperRobotMock:
             time_stamp (float): Timestamp of the image in seconds since the epoch
         """
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 source = np.zeros((480, 640, 3), dtype=np.uint8)  # Create black image
                 time_stamp = time.time()
                 return source, time_stamp
@@ -298,7 +298,7 @@ class GripperRobotMock:
             time_stamp (float): Timestamp of the image in seconds since the epoch
         """
         try:
-            if random.random() > self.failier_rate:
+            if random.random() > self.failure_rate:
                 source = np.zeros((720, 1280, 3), dtype=np.uint8)  # Create black image
                 time_stamp = time.time()
                 return source, time_stamp

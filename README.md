@@ -10,7 +10,7 @@ The CloudGripper API Client library provides a Python client to communicate with
 
 ## Setup
 
-Setup python virtual environment and install dedpendencies
+Set up a Python virtual environment and install dependencies
 
 ```bash
 python3 -m venv venv
@@ -101,7 +101,7 @@ Here are some of the basic commands you can send using the CloudGripper library:
 - Gripper Control:
   - `robot.gripper_open()`   # Opens the gripper fully
   - `robot.gripper_close()`  # Closes the gripper fully
-  - `robot.move_gripper(val)`# Adjusts the gripper's opening to a specific value, where 0 is fully close and 1 is fully open
+  - `robot.move_gripper(val)` # Adjusts the gripper's opening to a specific value, where 0 is fully close and 1 is fully open
 
 - Fetch State and Image:
   - `robot.get_state()`
@@ -155,10 +155,10 @@ robot.move_xy(0.5, 0.7)
 robot.move_z(0.8)
 
 # Mock gripper operations with realistic timing
-robot.gripper_open()  # Fully opens the mock gripper, mimicking a real gripper's timing
+robot.gripper_open() # Fully opens the mock gripper, mimicking a real gripper's timing
 robot.gripper_close() # Fully closes the mock gripper, with emulated closing force
 
-# Get mock camera images (returns empty frames with timestamps)
+# Mock camera images (returns blank frames with timestamps)
 img_base, timestamp = robot.getImageBase()  # Mock bottom-mounted camera image
 img_top, timestamp = robot.getImageTop()    # Mock top-mounted camera image
 ```
@@ -166,4 +166,4 @@ img_top, timestamp = robot.getImageTop()    # Mock top-mounted camera image
 The mock API simulates network failures with a configurable failure rate. By default, there's a 1% chance that any mock API call will fail. You can adjust this rate:
 
 ```python
-robot.failier_rate = 0.1  # Set 10% probability of command failure to mock network issues
+robot.failure_rate = 0.1  # Set 10% probability of command failure to mock network issues
