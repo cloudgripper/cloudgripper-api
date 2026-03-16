@@ -398,3 +398,27 @@ class GripperRobot:
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
+
+    def env_reset(self):
+        """
+        Reset the environment to a random state.
+
+        Args:
+            None
+
+        Returns:
+            result (dict | None): On success:
+                - 'status': "success"
+                - 'message': "Environment reset successfully."
+              On failure returns None.
+        """
+        try:
+            resp = get(self.base_api + '/env/reset', headers=self.headers)
+            data = resp.json()
+            if resp.status_code != 200:
+                print(f"env_reset failed: {data.get('error', data)}")
+                return None
+            return data
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
