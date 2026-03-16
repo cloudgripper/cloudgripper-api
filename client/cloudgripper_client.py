@@ -5,6 +5,7 @@ import base64
 import numpy as np
 
 api_address_robots = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/robot" for i in range(1, 33)}
+api_address_eval = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/eval" for i in range(1, 33)}
 
 class GripperRobot:
     """
@@ -14,12 +15,13 @@ class GripperRobot:
         name (str): The name of the robot
         token (str): The token of the robot
     """
-    global api_address_robots
+    global api_address_robots, api_address_eval
 
     def __init__(self, name, token):
         self.name = name
         self.headers = {"apiKey": token}
         self.base_api = api_address_robots[name]
+        self.eval_api = api_address_eval[name]
 
     def get_state(self):
         """
@@ -265,6 +267,31 @@ class GripperRobot:
             print("Image not available")
             return None, None
 
+    def getImageBaseUndistorted(self):
+        """
+        Get undistoted base camera image
+        
+        Args:
+            None
+
+        Returns:
+            image (numpy.ndarray): Undistorted base camera frame as a numpy array
+            time_stamp (float): Timestamp of the image in seconds since the epoch
+        """
+        try:
+            call_api = get(
+                self.base_api + '/getImageBaseUndistorted', headers=self.headers).json()
+            getimage = call_api['data']
+            time_stamp = call_api['time']
+            encode_img = getimage.encode('latin1')
+            img = base64.b64decode(encode_img)
+            npimg = np.fromstring(img, dtype=np.uint8)
+            source = cv2.imdecode(npimg, 1)
+            return source, time_stamp
+        except:
+            print("Undistorted image not available")
+            return None, None
+
     def getImageTop(self):
         """
         Get the top camera image from the robot
@@ -289,3 +316,85 @@ class GripperRobot:
         except:
             print("Image not available")
             return None, None
+
+    # ------------------------------------------------------------------
+    # Evaluation endpoints
+    # ------------------------------------------------------------------
+
+    def eval_start(self):
+        """
+        Start an evaluation run.  180s evaluation time starts and background IoU tracking begins.
+
+        Returns:
+            result (dict | None): On success:
+                - 'status': "Evaluation initialized"
+                - 'max_duration_seconds': 180
+                - 'system_time_start': server-side UNIX timestamp
+              On failure returns None.
+        """
+        try:
+            resp = get(self.eval_api + '/start', headers=self.headers)
+            data = resp.json()
+            if resp.status_code != 200:
+                print(f"eval_start failed: {data.get('error', data)}")
+                return None
+            return data
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
+
+    def eval_target(self):
+        """
+        Retrieve the target geometry for the current evaluation run.
+        Coordinates are in undistorted 2D pixel space.
+
+        Returns:
+            result (dict | None): On success:
+                - 'task': e.g. "planar_pushing"
+                - 'target_object': e.g. "square", "circle", "t"
+                - 'coordinate_space': "undistorted_pixel_2d"
+                - 'geometry': {"type": "polygon", "points": [{"x": ..., "y": ...}, ...]}
+              On failure returns None.
+        """
+        try:
+            resp = get(self.eval_api + '/target', headers=self.headers)
+            data = resp.json()
+            if resp.status_code != 200:
+                print(f"eval_target failed: {data.get('error', data)}")
+                return None
+            return data
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
+
+    def eval_status(self):
+        """
+        Get the current evaluation status.
+
+        Returns:
+            result (dict | None): On success, one of:
+              While running:
+                - 'status': "running"
+                - 'time_elapsed': float (seconds)
+                - 'time_remaining': float (seconds)
+                - 'current_iou': float
+              When completed:
+                - 'status': "completed"
+                - 'final_score': float (integral of IoU over time)
+                - 'iou_history': [{"t": float, "iou": float}, ...]
+                - 'message': str
+              While resetting:
+                - 'status': "resetting"
+                - 'message': str
+              On failure returns None.
+        """
+        try:
+            resp = get(self.eval_api + '/status', headers=self.headers)
+            data = resp.json()
+            if resp.status_code != 200:
+                print(f"eval_status failed: {data.get('error', data)}")
+                return None
+            return data
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
