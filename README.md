@@ -64,7 +64,7 @@ pip install -r requirements.txt
    Fetch images from robot cameras:
 
    ```python
-   frame, timestamp = robot.getImage()   # Get bottom camera image
+   frame, timestamp = robot.getImageBase()   # Get bottom camera image
    ```
 
 5. **Streaming Camera Feed**:
