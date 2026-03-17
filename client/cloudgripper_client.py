@@ -258,7 +258,7 @@ class GripperRobot:
             time_stamp = call_api['time']
             encode_img = getimage.encode('latin1')
             img = base64.b64decode(encode_img)
-            npimg = np.fromstring(img, dtype=np.uint8)
+            npimg = np.frombuffer(img, dtype=np.uint8)
             source = cv2.imdecode(npimg, 1)
             return source, time_stamp
         except:
@@ -283,7 +283,7 @@ class GripperRobot:
             time_stamp = call_api['time']
             encode_img = getimage.encode('latin1')
             img = base64.b64decode(encode_img)
-            npimg = np.fromstring(img, dtype=np.uint8)
+            npimg = np.frombuffer(img, dtype=np.uint8)
             source = cv2.imdecode(npimg, 1)
             return source, time_stamp
         except:
