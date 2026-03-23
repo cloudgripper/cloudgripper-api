@@ -111,6 +111,7 @@ Here are some of the basic commands you can send using the CloudGripper library:
 - Evaluation and Environment Control:
   - `robot.eval_start()`  # Start evaluation run (180s timer, begins IoU tracking)
   - `robot.eval_target()`  # Get target geometry for current evaluation in undistorted img coordinates
+  - `robot.eval_object()`  # Get current object geometry from base camera in undistorted img coordinates
   - `robot.eval_status()`  # Get evaluation status and score
   - `robot.env_reset()`  # Reset environment to a random state
 

@@ -422,3 +422,26 @@ class GripperRobot:
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
+
+    def eval_object(self):
+        """
+        Retrieve the current object geometry from the base camera.
+        Coordinates are in undistorted 2D pixel space.
+
+        Returns:
+            result (dict | None): On success:
+                - 'object': object name (e.g., "square", "circle", "t")
+                - 'coordinate_space': "undistorted_pixel_2d"
+                - 'geometry': {"type": "polygon", "points": [{"x": ..., "y": ...}, ...]}
+              On failure returns None.
+        """
+        try:
+            resp = get(self.eval_api + '/object', headers=self.headers)
+            data = resp.json()
+            if resp.status_code != 200:
+                print(f"eval_object failed: {data.get('error', data)}")
+                return None
+            return data
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
