@@ -143,6 +143,8 @@ $$\text{score} = \max\!\left(0,\ 1 - \frac{\text{RMSE}}{220}\right)$$
 
 A score of **1.0** means a perfect match; a score of **0.0** means the RMSE is ≥ 220 pixels. The normalisation constant of 220 pixels is chosen relative to the workspace size visible in the base camera.
 
+The **final score is the score evaluated at the end of the 3-minute window**; there is no integral or time-averaged scoring.
+
 ## Important Note
 
 - Ensure you have a stable internet connection as the client communicates with the robots over the internet.
