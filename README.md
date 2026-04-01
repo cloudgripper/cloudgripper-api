@@ -139,7 +139,7 @@ The rope manipulation task requires the robot to reshape a rope from its current
 
 The score is computed using the Root Mean Square Error (RMSE) between the 20 current rope points and the 20 target rope points (in image pixel coordinates):
 
-$$\text{score} = \max\!\left(0,\ 1 - \frac{\text{RMSE}}{220}\right)$$
+$$\text{score} = \max\left(0,\ 1 - \frac{\text{RMSE}}{220}\right)$$
 
 A score of **1.0** means a perfect match; a score of **0.0** means the RMSE is ≥ 220 pixels. The normalisation constant of 220 pixels is chosen relative to the workspace size visible in the base camera.
 
