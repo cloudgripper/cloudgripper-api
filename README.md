@@ -109,11 +109,39 @@ Here are some of the basic commands you can send using the CloudGripper library:
   - `robot.getImageTop()`
 
 - Evaluation and Environment Control:
-  - `robot.eval_start()`  # Start evaluation run (180s timer, begins IoU tracking)
-  - `robot.eval_target()`  # Get target geometry for current evaluation in undistorted img coordinates
-  - `robot.eval_object()`  # Get current object geometry from base camera in undistorted img coordinates
+  - `robot.eval_start()`  # Start evaluation run (180s timer, begins tracking)
+  - `robot.eval_target()`  # Get target configuration for current evaluation
+  - `robot.eval_object()`  # Get current object state from base camera
   - `robot.eval_status()`  # Get evaluation status and score
   - `robot.env_reset()`  # Reset environment to a random state
+
+---
+
+## Competition Task 2: Linear Deformable Object Shape Control
+
+The rope manipulation task requires the robot to reshape a rope from its current configuration into a given target configuration within a **3-minute time limit**.
+
+![Rope Evaluation](resources/rope_evaluation.png)
+
+### Workflow
+
+1. **Start the evaluation** using `robot.eval_start()`. This starts the 3-minute countdown timer.
+
+2. **Get the target rope configuration** using `robot.eval_target()`. This returns the desired rope pose as **20 evenly distributed points** along the rope. The target is fixed for the duration of the evaluation run.
+
+3. **Get the current rope pose** at any time during the run using `robot.eval_object()`. This returns the current segmented rope pose as **20 evenly distributed points** from the base camera.
+
+4. **Reset the rope** to a new random starting configuration using `robot.env_reset()`.
+
+> **Note:** All robot actions are available during Task2. Z-height (`robot.move_z()`), gripper (`robot.move_gripper()`, `robot.gripper_open()`, `robot.gripper_close()`), and rotation (`robot.rotate()`) are all unlocked and can be used freely alongside XY movement.
+
+### Evaluation Metric
+
+The score is computed using the Root Mean Square Error (RMSE) between the 20 current rope points and the 20 target rope points (in image pixel coordinates):
+
+$$\text{score} = \max\!\left(0,\ 1 - \frac{\text{RMSE}}{220}\right)$$
+
+A score of **1.0** means a perfect match; a score of **0.0** means the RMSE is ≥ 220 pixels. The normalisation constant of 220 pixels is chosen relative to the workspace size visible in the base camera.
 
 ## Important Note
 
