@@ -6,6 +6,7 @@ import numpy as np
 
 api_address_robots = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/robot" for i in range(1, 33)}
 api_address_eval = {f"robot{i}": f"https://cloudgripper.eecs.kth.se:8443/robot{i}/api/v1.1/eval" for i in range(1, 33)}
+api_address_competition = f"https://cloudgripper.eecs.kth.se:8443/competition"
 
 class GripperRobot:
     """
@@ -20,8 +21,12 @@ class GripperRobot:
     def __init__(self, name, token):
         self.name = name
         self.headers = {"apiKey": token}
-        self.base_api = api_address_robots[name]
-        self.eval_api = api_address_eval[name]
+        if name == "competition":
+            self.base_api = api_address_competition
+            self.eval_api = api_address_competition + "/eval"
+        else:
+            self.base_api = api_address_robots[name]
+            self.eval_api = api_address_eval[name]
 
     def get_state(self):
         """
@@ -440,6 +445,58 @@ class GripperRobot:
             data = resp.json()
             if resp.status_code != 200:
                 print(f"eval_object failed: {data.get('error', data)}")
+                return None
+            return data
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
+
+    """
+    Competition endpoints
+    """
+    def competition_start(self, task):
+        """
+        Start a competition evaluation run for the specified task.
+
+        Args:
+            task (str): The task name (e.g., "task1", "task2")
+
+        Returns:
+            result (dict | None): On success:
+                - 'run_id': Unique identifier for this run
+                - 'task': Task name
+                - 'subtask': Assigned subtask name
+              On failure returns None.
+        """
+        try:
+            resp = get(f"{self.base_api}/{task}/start", headers=self.headers)
+            data = resp.json()
+            if resp.status_code != 200:
+                print(f"competition_start failed: {data.get('detail', data)}")
+                return None
+            return data
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
+        
+    def competition_status(self):
+        """
+        Get the current competition status for the team.
+
+        Returns:
+            result (dict | None): On success:
+                - 'team': Team identifier
+                - 'tasks': Dict of task statuses, each containing:
+                    - 'attempts_remaining': Number of remaining attempts
+                    - 'max_attempts': Maximum allowed attempts
+                    - 'runs': List of run records
+              On failure returns None.
+        """
+        try:
+            resp = get(f"{self.base_api}/status", headers=self.headers)
+            data = resp.json()
+            if resp.status_code != 200:
+                print(f"competition_status failed: {data.get('detail', data)}")
                 return None
             return data
         except exceptions.RequestException as e:

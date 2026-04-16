@@ -83,6 +83,50 @@ pip install -r requirements.txt
 
    Ensure you have OpenCV (`opencv-python`) installed to use this feature.
 
+## Midterm Evaluation
+
+The midterm evaluation will be available for a 48-hour period, starting at **9:00 AM (Swedish time) on April 20th** and ending at **9:00 AM (Swedish time) on April 22nd**. You are free to perform your evaluations at any time within this window.
+
+### How to participate
+
+1. **Connect to the competition server**:
+   Instead of connecting to a specific robot, you must use `"competition"` as the robot name:
+   ```python
+   robot = GripperRobot("competition", token)
+   ```
+
+2. **Check your status**:
+   Before starting, you are encouraged to check your remaining attempts and scores on completed attempts:
+   ```python
+   status = robot.competition_status()
+   print(status)
+   ```
+
+3. **Start an evaluation run**:
+   To start an evaluation, use `competition_start` with the task name (`"task1"` or `"task2"`). 
+   
+   **IMPORTANT**: This function connects you randomly to an available robot configured for that task. If no robots are available or you are out of attempts, it will return `None`. Always check the return value:
+   
+   ```python
+   run_info = robot.competition_start("task1")
+   if run_info is None:
+       print("Failed to start competition run. No robots available or out of attempts.")
+       exit(1)
+       
+   print(f"Connected to robot for {run_info['task']} - {run_info['subtask']}")
+   ```
+
+4. **Run your evaluation**:
+   Once connected, you can use all the regular robot functions just like before (`eval_target`, `eval_object`, `move_xy`, etc.).
+   
+   - You can track your run using `robot.eval_status()`.
+   - Once the 3-minute mark is reached, you will be disconnected from the robot and the run will be recorded on the server. You may check your score for the run using `robot.competition_status()`.
+
+### Evaluation Limits and Scoring
+- **Task 1**: 4 runs per object (3 objects total) = 12 total runs.
+- **Task 2**: 4 runs total.
+- Only the **top 3 scores** in each category will be used to rank your team. You can use the extra attempts to experiment and get used to the evaluation client.
+
 ## Commands Overview
 
 Here are some of the basic commands you can send using the CloudGripper library:
