@@ -18,9 +18,11 @@ class GripperRobot:
     """
     global api_address_robots, api_address_eval
 
-    def __init__(self, name, token):
+    def __init__(self, name, token, worker_id = "default"):
         self.name = name
-        self.headers = {"apiKey": token}
+        self.headers = {"apiKey": token,
+                        "x-worker-id": str(worker_id)}
+
         if name == "competition":
             self.base_api = api_address_competition
             self.eval_api = api_address_competition + "/eval"
@@ -487,7 +489,7 @@ class GripperRobot:
             result (dict | None): On success:
                 - 'team': Team identifier
                 - 'tasks': Dict of task statuses, each containing:
-                    - 'attempts_remaining': Number of remaining attempts
+                    - 'attempts_completed': Number of attempts completed
                     - 'max_attempts': Maximum allowed attempts
                     - 'runs': List of run records
               On failure returns None.

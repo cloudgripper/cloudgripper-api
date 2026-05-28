@@ -83,16 +83,16 @@ pip install -r requirements.txt
 
    Ensure you have OpenCV (`opencv-python`) installed to use this feature.
 
-## Midterm Evaluation
+## Competition Evaluation
 
-The midterm evaluation will be available for a 48-hour period, starting at **9:00 AM (Swedish time) on April 20th** and ending at **9:00 AM (Swedish time) on April 22nd**. You are free to perform your evaluations at any time within this window.
+The competition evaluation will be available for a certain announced period. You are free to perform your evaluations at any time within this window.
 
 ### How to participate
 
 1. **Connect to the competition server**:
-   Instead of connecting to a specific robot, you must use `"competition"` as the robot name:
+   Instead of connecting to a specific robot, you must use `"competition"` as the robot name and provide a unique `worker_id`:
    ```python
-   robot = GripperRobot("competition", token)
+   robot = GripperRobot("competition", token, worker_id = 1)
    ```
 
 2. **Check your status**:
@@ -123,8 +123,8 @@ The midterm evaluation will be available for a 48-hour period, starting at **9:0
    - Once the 3-minute mark is reached, you will be disconnected from the robot and the run will be recorded on the server. You may check your score for the run using `robot.competition_status()`.
 
 ### Evaluation Limits and Scoring
-- **Task 1**: 4 runs per object (3 objects total) = 12 total runs.
-- **Task 2**: 4 runs total.
+- **Task 1**: 5 runs per object (6 objects total) = 30 total runs.
+- **Task 2**: 5 runs per rope type.
 - Only the **top 3 scores** in each category will be used to rank your team. You can use the extra attempts to experiment and get used to the evaluation client.
 
 ## Commands Overview
