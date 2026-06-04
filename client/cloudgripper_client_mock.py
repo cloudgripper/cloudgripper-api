@@ -60,6 +60,42 @@ class GripperRobotMock:
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None, None
+
+    def get_all_states(self):
+        """
+        Get the mock robot state and images from both cameras
+
+        Args:
+            None
+
+        Returns:
+            state (dict): current state of a mock robot
+            time_state (float): timestamp of the state in seconds since the epoch
+            image_base (numpy.ndarray): The base camera image as a numpy array
+            time_base (float): timestamp of the base camera image in seconds since the epoch
+            image_top (numpy.ndarray): The top camera image as a numpy array
+            time_top (float): timestamp of the top camera image in seconds since the epoch
+        """
+        state = {'x_norm': 0.5,
+                 'y_norm': 0.5,
+                 'z_norm': 0.5,
+                 'rotation': 0,
+                 'claw_norm': 0.5,
+                 'z_current': 0,
+                 'rotation_current': 0,
+                 'claw_current': 0}
+
+        try:
+            if random.random() > self.failure_rate:
+                timestamp = time.time()
+                image_base = np.zeros((480, 640, 3), dtype=np.uint8)
+                image_top = np.zeros((720, 1280, 3), dtype=np.uint8)
+                return state, timestamp, image_base, timestamp, image_top, timestamp
+            else:
+                raise exceptions.RequestException("Simulated request failure")
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None, None, None, None, None, None
         
     def step_forward(self):
         """

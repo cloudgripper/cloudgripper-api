@@ -48,6 +48,38 @@ class GripperRobot:
             print('Request failed:', e)
             return None, None
 
+    def get_all_states(self):
+        """
+        Get the robot state and images from both cameras
+
+        Args:
+            None
+
+        Returns:
+            state (dict): current state of the robot
+            time_state (float): timestamp of the state in seconds since the epoch
+            image_base (numpy.ndarray): The base camera image as a numpy array
+            time_base (float): timestamp of the base camera image in seconds since the epoch
+            image_top (numpy.ndarray): The top camera image as a numpy array
+            time_top (float): timestamp of the top camera image in seconds since the epoch
+        """
+        try:
+            call_api = get(self.base_api + '/getAllStates',
+                           headers=self.headers).json()
+
+            image_base = base64.b64decode(call_api['data_base_camera'].encode('latin1'))
+            npimg_base = np.frombuffer(image_base, dtype=np.uint8)
+            source_base = cv2.imdecode(npimg_base, 1)
+
+            image_top = base64.b64decode(call_api['data_top_camera'].encode('latin1'))
+            npimg_top = np.frombuffer(image_top, dtype=np.uint8)
+            source_top = cv2.imdecode(npimg_top, 1)
+
+            return call_api['state'], call_api['time_state'], source_base, call_api['time_base_camera'], source_top, call_api['time_top_camera']
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None, None, None, None, None, None
+
     def step_forward(self):
         """
         Move the robot one step forward (y-direction)

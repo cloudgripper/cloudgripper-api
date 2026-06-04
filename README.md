@@ -106,6 +106,7 @@ Here are some of the basic commands you can send using the CloudGripper library:
 
 - Fetch State and Image:
   - `robot.get_state()`
+  - `robot.get_all_states()`
   - `robot.getImageBase()`
   - `robot.getImageTop()`
 
