@@ -245,7 +245,30 @@ class GripperRobotMock:
         except exceptions.RequestException as e:
             print('Request failed:', e)
             return None
-        
+
+    def step_action(self, action):
+        """
+        Execute a mock 5D robot action sequentially: x, y, z, rotation, grip
+
+        Args:
+            action (list): [x, y, z, rotation, grip], where x/y/z/grip are normalized and rotation is in degrees
+
+        Returns:
+            timestamp (float): Timestamp of the command in seconds since the epoch
+        """
+        if len(action) != 5:
+            raise ValueError("action must contain [x, y, z, rotation, grip]")
+
+        self.robotPositionX, self.robotPositionY, self.zaxisAngle, self.rotationAngle, self.gripperAngle = action
+        try:
+            if random.random() > self.failure_rate:
+                return time.time()
+            else:
+                raise exceptions.RequestException("Simulated request failure")
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
+         
     def calibrate(self):
         """
         (INACTIVE) Calibrate the mock robot's position and orientation

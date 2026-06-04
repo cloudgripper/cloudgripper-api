@@ -224,6 +224,28 @@ class GripperRobot:
             print('Request failed:', e)
             return None
 
+    def step_action(self, action):
+        """
+        Execute a 5D robot action sequentially: x, y, z, rotation, grip
+
+        Args:
+            action (list): [x, y, z, rotation, grip], where x/y/z/grip are normalized and rotation is in degrees
+
+        Returns:
+            timestamp (float): Timestamp of the command in seconds since the epoch
+        """
+        if len(action) != 5:
+            raise ValueError("action must contain [x, y, z, rotation, grip]")
+
+        x, y, z, rotation, grip = action
+        try:
+            call_api = get(self.base_api + '/step/' + str(x) + '/' + str(y) + '/' + str(z) + '/' + str(rotation) + '/' + str(grip),
+                           headers=self.headers).json()
+            return call_api['time']
+        except exceptions.RequestException as e:
+            print('Request failed:', e)
+            return None
+
     def calibrate(self):
         """
         (INACTIVE) Calibrate the robot's position and orientation

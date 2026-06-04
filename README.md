@@ -97,6 +97,7 @@ Here are some of the basic commands you can send using the CloudGripper library:
   - `robot.rotate(angle)`   # Rotation in degrees (0 to 180)
   - `robot.move_z(z)`       # Move up or down, z value normalized between 0 and 1
   - `robot.move_xy(x, y)`   # Move to the specific x and y position, x,y normalized between 0 and 1 to cover work area
+  - `robot.step_action([x, y, z, rotation, grip])` # Execute a 5D action sequentially
 
 - Gripper Control:
   - `robot.gripper_open()`   # Opens the gripper fully
