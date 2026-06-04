@@ -2,3 +2,4 @@ numpy
 pybase64
 requests
 opencv-python
+websocket-client

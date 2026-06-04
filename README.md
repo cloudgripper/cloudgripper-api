@@ -81,7 +81,50 @@ pip install -r requirements.txt
            break
    ```
 
-   Ensure you have OpenCV (`opencv-python`) installed to use this feature.
+    Ensure you have OpenCV (`opencv-python`) installed to use this feature.
+
+## WebSocket Usage
+
+Use WebSocket methods when you want to reuse one persistent connection instead of making one HTTP request per command.
+
+```python
+import os
+from client.cloudgripper_client import GripperRobot
+
+token = os.environ['CLOUDGRIPPER_TOKEN']
+
+with GripperRobot('robot23', token) as robot:
+    state, timestamp = robot.get_state_ws()
+    image_base, image_time = robot.get_image_base_ws()
+    top_img, base_img, state, times = robot.get_all_states_ws()
+
+    robot.move_xy_ws(0.5, 0.5)
+    robot.move_z_ws(0.8)
+    robot.rotate_ws(90)
+    robot.move_gripper_ws(1)
+    robot.step_action_ws([0.5, 0.5, 0.8, 90, 1])
+```
+
+Available WebSocket methods mirror the normal API methods with `_ws` suffix, for example `get_state_ws()`, `get_image_base_ws()`, `move_xy_ws(x, y)`, and `step_action_ws([x, y, z, rotation, grip])`.
+
+You can also manage the connection manually:
+
+```python
+from client.cloudgripper_client import GripperRobot
+
+robot = GripperRobot('robot23', token)
+
+print("Connecting camera websocket...")
+robot.connect_ws()
+robot._ws.settimeout(None)
+
+
+print("Fetching initial state...")
+init_state, timestamp = robot.get_state_ws()
+print(init_state)
+
+robot.disconnect_ws()
+```
 
 ## Commands Overview
 
